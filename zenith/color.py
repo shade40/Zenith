@@ -197,6 +197,26 @@ class Color:
 
         return calculate_tetradic_group(self)
 
+    def lighten(self, shade_count: int, step_size: float = 0.1) -> Color:
+        """Returns a lighter version of this color.
+
+        The calculation is done by blending white with an alpha of:
+
+            `shade_count * step_size`
+        """
+
+        return self.blend(Color.white(), alpha=shade_count * step_size)
+
+    def darken(self, shade_count: int, step_size: float = 0.1) -> Color:
+        """Returns a darker version of this color.
+
+        The calculation is done by blending black with an alpha of:
+
+            `shade_count * step_size`
+        """
+
+        return self.blend(Color.black(), alpha=shade_count * step_size)
+
     def as_background(self, setting: bool = True) -> Color:
         """Returns this color, with the given background setting."""
 
