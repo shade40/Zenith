@@ -115,6 +115,23 @@ class Palette:  # pylint: disable=too-many-instance-attributes
         self.warning = self.warning_blend_base.blend(primary, SEMANTIC_BLEND_ALPHA)
         self.error = self.error_blend_base.blend(primary, SEMANTIC_BLEND_ALPHA)
 
+        self.surface1 = self.surface_blend_base.blend(
+            self.primary,
+            alpha=SURFACE_BLEND_ALPHA,
+        )
+        self.surface2 = self.surface_blend_base.blend(
+            self.secondary,
+            alpha=SURFACE_BLEND_ALPHA,
+        )
+        self.surface3 = self.surface_blend_base.blend(
+            self.tertiary,
+            alpha=SURFACE_BLEND_ALPHA,
+        )
+        self.surface4 = self.surface_blend_base.blend(
+            self.quaternary,
+            alpha=SURFACE_BLEND_ALPHA,
+        )
+
         self.colors = {
             "primary": self.primary,
             "secondary": self.secondary,
