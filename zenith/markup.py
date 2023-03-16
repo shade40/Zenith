@@ -1,8 +1,10 @@
+"""Zenith's markup language and its related utilities."""
+
 from __future__ import annotations
 
 import re
-from typing import Generator, TypedDict, Callable
-from gunmetal.span import SETTERS, UNSETTERS, Span
+from typing import Generator, TypedDict, Callable, Hashable, cast, Iterable
+from gunmetal.span import UNSETTERS, Span
 
 from .color import Color
 from .color_info import CSS_COLORS
@@ -81,17 +83,16 @@ def _parse_color(color: str) -> str:
             index += 2  # Skip codes 38 & 48
             return str(80 + background + index)
 
-        elif index < 256:
+        if index < 256:
             return f"{38 + background};5;{index}"
 
-        else:
-            raise ValueError(
-                f"Could not parse indexed color {color!r};"
-                " it should be between 0 and 16, or 16 and 255."
-            )
+        raise ValueError(
+            f"Could not parse indexed color {color!r};"
+            " it should be between 0 and 16, or 16 and 255."
+        )
 
-    if color in CSS_COLORS:
-        color = CSS_COLORS[color]
+    # Substitute CSS's named colors when possible
+    color = CSS_COLORS.get(color, color)
 
     if color.startswith("#"):
         color = color.lstrip("#")
@@ -103,7 +104,7 @@ def _parse_color(color: str) -> str:
     return f"{38 + background};2;{color}"
 
 
-def _apply_auto_foreground(style_stack: dict[str, bool]) -> bool:
+def _apply_auto_foreground(style_stack: dict[str, bool | str]) -> bool:
     """Applies contrasting foreground colors when none are set."""
 
     back = style_stack.get("background") or None
@@ -115,13 +116,13 @@ def _apply_auto_foreground(style_stack: dict[str, bool]) -> bool:
     if not (fore is None and back is not None):
         return False
 
+    assert isinstance(back, str)
+
     style_stack["foreground"] = Color.from_ansi(back).contrast.as_background(False).ansi
     return True
 
 
-def _get_hashable_key(
-    text: str, ctx: ContextMapping
-) -> tuple[str, tuple[str, str | Callable[[str], str]]]:
+def _get_hashable_key(text: str, ctx: ContextMapping) -> Hashable:
     """Combines the given text and context into something that is hashable.
 
     Args:
@@ -142,7 +143,7 @@ def _get_hashable_key(
 
 
 def markup_spans(
-    text: str, ctx: ContextMapping = GLOBAL_CONTEXT
+    text: str, ctx: ContextMapping | None = None
 ) -> Generator[Span, None, None]:
     """Generates Span objects representative of the markup text given.
 
@@ -151,14 +152,17 @@ def markup_spans(
 
     Args:
         text: Some markup string.
-        ctx: A context mapping to get aliases and macros from.
+        ctx: A context mapping to get aliases and macros from. Defaults to the global
+            context.
 
     Yields:
         Spans, as they occur in the markup. Each span represents a plain bit, styled by
         the current style stack.
     """
 
-    style_stack = BASE_STYLE_STACK.copy()
+    ctx = ctx or GLOBAL_CONTEXT
+
+    style_stack = cast("dict[str, str | bool]", BASE_STYLE_STACK.copy())
     macros: list[Callable[[str], str]] = []
 
     get_macro = ctx["macros"].get
@@ -175,7 +179,7 @@ def markup_spans(
         tag = tag.lstrip("/")
 
         if tag == "" and not is_setter:
-            style_stack.update(**BASE_STYLE_STACK)
+            style_stack.update(**BASE_STYLE_STACK)  # type: ignore
 
             return
 
@@ -225,10 +229,8 @@ def markup_spans(
         if alias is None:
             raise ValueError(f"Unknown tag {tag!r}.")
 
-        for tag in alias.split():
-            _apply_tag(tag)
-
-    spans = []
+        for part in alias.split():
+            _apply_tag(part)
 
     for mtch in RE_MARKUP.finditer(text):
         tags, plain = mtch.groups()
@@ -253,7 +255,7 @@ def markup_spans(
             del style_stack["foreground"]
 
 
-def parse_spans(spans: Iterable[Span]) -> str:
+def parse_spans(spans: Iterable[Span]) -> str:  # pylint: disable=too-many-branches
     """Parses spans into an optimized ANSI string.
 
     Args:
@@ -264,7 +266,7 @@ def parse_spans(spans: Iterable[Span]) -> str:
         in many places to reduce the output's length and noise.
     """
 
-    style_stack: StyleStack = BASE_STYLE_STACK.copy()
+    style_stack: StyleStack = cast(StyleStack, BASE_STYLE_STACK.copy())
 
     buff = ""
     hyperlink = ""
@@ -276,7 +278,7 @@ def parse_spans(spans: Iterable[Span]) -> str:
             buff += "\x1b[0m"
             hyperlink = style_stack["hyperlink"]
 
-            style_stack.update(**BASE_STYLE_STACK)
+            style_stack.update(**BASE_STYLE_STACK)  # type: ignore
             style_stack["hyperlink"] = hyperlink
 
             continue
@@ -291,14 +293,14 @@ def parse_spans(spans: Iterable[Span]) -> str:
             if key == "hyperlink":
                 stack[key] = value
 
-            if style_stack[key] != value:
+            if style_stack[key] != value:  # type: ignore
                 if value:
                     stack[key] = value
 
                 else:
                     unset.append(key)
 
-        if unset != []:
+        if unset:
             if unset != ["hyperlink"]:
                 buff += (
                     "\x1b["
@@ -311,13 +313,12 @@ def parse_spans(spans: Iterable[Span]) -> str:
             if "hyperlink" in unset:
                 buff += "\x1b]8;;\x1b\\"
 
-        buff += str(span.mutate(reset_after=False, **stack)).rstrip("\x1b]8;;\x1b\\")
+        buff += str(span.mutate(reset_after=False, **stack))
+        buff = buff.removesuffix("\x1b]8;;\x1b\\")
 
-        style_stack.update(**stack)
+        style_stack.update(**stack)  # type: ignore
 
     if span is not None:
-        attrs = span.attrs
-
         if any(span.attrs[key] for key in style_stack if key != "hyperlink"):
             buff += "\x1b[0m"
 
@@ -327,18 +328,21 @@ def parse_spans(spans: Iterable[Span]) -> str:
     return buff
 
 
-def markup(text: str, ctx: ContextMapping = GLOBAL_CONTEXT) -> str:
+def markup(text: str, ctx: ContextMapping | None = None) -> str:
     """Parses the given markup as a string.
 
     Under the hood, this joins the `Span` object generated by `markup_spans`.
 
     Args:
         text: Some markup string.
-        ctx: A context mapping to get aliases and macros from.
+        ctx: A context mapping to get aliases and macros from. Defaults to the
+            global context.
 
     Returns:
         The parsed string that is represented by the given markup.
     """
+
+    ctx = ctx or GLOBAL_CONTEXT
 
     hashable_key = _get_hashable_key(text, ctx)
 

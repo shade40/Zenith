@@ -1,3 +1,10 @@
+"""Tables of lots of colors.
+
+`COLOR_TABLE` contains all 256 8-bit colors' RGB values, as defined by standards.
+
+`CSS_COLORS` contains all modern CSS colors' RGB values.
+"""
+
 COLOR_TABLE = [
     (0, 0, 0),
     (170, 0, 0),
