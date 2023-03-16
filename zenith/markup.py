@@ -44,7 +44,7 @@ class StyleStack(TypedDict):
 
 MarkupGroup = tuple[str, list[str]]
 
-RE_MARKUP = re.compile(r"(?:\[(.+?)\])?([^\]\[]+)(?=\[|$)")
+RE_MARKUP = re.compile(r"(?:\[([^\[\]]+)\])?([^\]\[]+)(?=\[|$)")
 RE_COLOR = re.compile(
     r"(?:^@?([\d]{1,3})$)|(?:@?#?([0-9a-fA-F]{6}))|(@?\d{1,3};\d{1,3};\d{1,3})"
 )
