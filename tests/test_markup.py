@@ -1,14 +1,21 @@
 import pytest
 
 from gunmetal import Span
-from zenith.markup import alias, markup, markup_spans, GLOBAL_MACROS, GLOBAL_ALIASES
+from zenith.markup import (
+    alias,
+    define,
+    markup,
+    markup_spans,
+    GLOBAL_MACROS,
+    GLOBAL_ALIASES,
+)
 
 
 def test_markup_str_parse():
     def _upper(text: str) -> str:
         return text.upper()
 
-    GLOBAL_MACROS["!upper"] = _upper
+    define("!upper", _upper)
 
     assert (
         markup("[bold underline 61]Hello [141 /bold]There")
@@ -106,8 +113,8 @@ def test_markup_macros():
     def _conceal(text: str) -> str:
         return "*" * (len(text) - 1) + text[-1]
 
-    GLOBAL_MACROS["!upper"] = _upper
-    GLOBAL_MACROS["!conceal"] = _conceal
+    define("!upper", _upper)
+    define("!conceal", _conceal)
 
     assert list(
         markup_spans("[!upper 141]Test[/!upper /fg !conceal bold]other test")
@@ -136,7 +143,7 @@ def test_markup_aliases():
     def _upper(text: str) -> str:
         return text.upper()
 
-    GLOBAL_MACROS["!upper"] = _upper
+    define("!upper", _upper)
 
     alias(complex_with_macro="!upper lavender")
 

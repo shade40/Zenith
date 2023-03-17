@@ -89,6 +89,28 @@ def alias(
         ctx_aliases[key.replace("_", "-")] = value
 
 
+def define(
+    identifier: str, value: Callable[[str], str], ctx: ContextMapping | None = None
+) -> None:
+    """Defines a markup macro within the given context.
+
+    Args:
+        identifier: The name the macro can be referenced by. Must start with '!'.
+        value: The callback that is executed by the macro. This takes the partially
+            parsed output at the moment the macro is found, and returns some
+            modification of it.
+        ctx: The context to alias within. Defaults to the global context.
+    """
+
+    if not identifier.startswith("!"):
+        raise ValueError(
+            "Macro identifiers must start with `!`, {identifier!r} doesn't."
+        )
+
+    ctx = ctx or GLOBAL_CONTEXT
+    ctx["macros"][identifier] = value
+
+
 def _parse_color(color: str) -> str:
     background = color.startswith("@") * 10
     color = color.lstrip("@")
