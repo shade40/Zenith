@@ -147,7 +147,7 @@ class Palette:  # pylint: disable=too-many-instance-attributes
         }
 
     @classmethod
-    def from_hex(cls, primary: str) -> Palette:
+    def from_hex(cls, primary: str, strategy: PalettingFunction = triadic) -> Palette:
         """Generates a palette from a CSS-style HEX color string."""
 
-        return Palette(Color.from_hex(primary))
+        return Palette(Color.from_hex(primary), strategy=strategy)
