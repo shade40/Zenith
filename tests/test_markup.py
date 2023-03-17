@@ -1,7 +1,7 @@
 import pytest
 
 from gunmetal import Span
-from zenith.markup import markup, markup_spans, GLOBAL_MACROS, GLOBAL_ALIASES
+from zenith.markup import alias, markup, markup_spans, GLOBAL_MACROS, GLOBAL_ALIASES
 
 
 def test_markup_str_parse():
@@ -127,7 +127,7 @@ def test_markup_macros():
 
 
 def test_markup_aliases():
-    GLOBAL_ALIASES["test"] = "141 bold"
+    alias(a="b", test="141 bold")
 
     assert list(markup_spans("[test italic]What is this?")) == [
         Span("What is this?", italic=True, bold=True, foreground="38;5;141")
@@ -138,13 +138,13 @@ def test_markup_aliases():
 
     GLOBAL_MACROS["!upper"] = _upper
 
-    GLOBAL_ALIASES["complex-with-macro"] = "!upper lavender"
+    alias(complex_with_macro="!upper lavender")
 
     assert list(markup_spans("[complex-with-macro]test")) == [
         Span("TEST", foreground="38;2;230;230;250")
     ]
 
-    GLOBAL_ALIASES["complex-with-hyperlink"] = "~https://google.com underline slategray"
+    alias(complex_with_hyperlink="~https://google.com underline slategray")
 
     assert list(markup_spans("[complex-with-hyperlink]test")) == [
         Span(

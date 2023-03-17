@@ -10,7 +10,6 @@ from .color import Color
 from .color_info import CSS_COLORS
 from .lru_cache import LRUCache
 
-
 _markup_cache = LRUCache(1024)
 
 _full_reset = Span("FULL_RESET")
@@ -67,6 +66,27 @@ BASE_STYLE_STACK = {
     "background": "",
     "hyperlink": "",
 }
+
+
+def alias(
+    *,
+    ctx: ContextMapping | None = None,
+    keep_case: bool = False,
+    **aliases: tuple[str, str],
+) -> None:
+    """Sets up an alias in the given context.
+
+    Args:
+        **aliases: Key=value pairs to alias, like `alias(my_alias="141", my_alias_2="61")`.
+        ctx: The context to alias within. Defaults to the global context.
+        keep_case: If set, alias keys won't be kebab-cased (my_alias -> my-alias).
+    """
+
+    ctx = ctx or GLOBAL_CONTEXT
+    ctx_aliases = ctx["aliases"]
+
+    for key, value in aliases.items():
+        ctx_aliases[key.replace("_", "-")] = value
 
 
 def _parse_color(color: str) -> str:
@@ -244,6 +264,7 @@ def markup_spans(
 
             _apply_tag(tag)
 
+        # TODO: Yield macros to consumer to allow smartly caching things.
         for macro in macros:
             plain = macro(plain)
 
