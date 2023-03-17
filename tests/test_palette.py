@@ -1,4 +1,5 @@
 from zenith.color import Color
+from zenith.markup import ContextMapping
 from zenith.palette import Palette, triadic, analogous, tetradic
 
 
@@ -27,3 +28,17 @@ def test_palette_tetradic():
     assert pal.secondary == pal.primary.hue_shift(1 / 4)
     assert pal.tertiary == pal.primary.hue_shift(2 / 4)
     assert pal.quaternary == pal.primary.hue_shift(3 / 4)
+
+
+def test_palette_alias():
+    pal = Palette.from_hex("#42DFBC")
+    ctx = ContextMapping.new()
+
+    pal.alias(ctx=ctx)
+
+    assert ctx["aliases"]["error-2"] == pal.error.darken(2).hex
+    assert ctx["aliases"]["surface3"] == pal.surface3.hex
+    assert ctx["aliases"]["success+3"] == pal.success.lighten(3).hex
+
+    assert "success+4" not in ctx["aliases"]
+    assert "primary-5" not in ctx["aliases"]

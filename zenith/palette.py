@@ -6,6 +6,7 @@ from typing import Callable
 from dataclasses import dataclass, field
 
 from .color import Color
+from .markup import ContextMapping, alias
 
 PalettingFunction = Callable[[Color], tuple[Color, Color, Color, Color]]
 
@@ -151,3 +152,36 @@ class Palette:  # pylint: disable=too-many-instance-attributes
         """Generates a palette from a CSS-style HEX color string."""
 
         return Palette(Color.from_hex(primary), strategy=strategy)
+
+    def alias(
+        self,
+        ctx: ContextMapping | None = None,
+        shade_count: int = 3,
+        shade_step: float = 0.1,
+    ) -> None:
+        """Sets up aliases for this palette's colors.
+
+        Args:
+            ctx: The markup context to alias into. Defaults to the global context.
+            shade_count: The number of shades that should be included on both the
+                positive and negative side. These are aliased as `{color}{+/-step}`,
+                like `primary+2` or `surface1-2`.
+            shade_step: The step_size passed to `Color.lighten` or `Color.darken`,
+                controls the distance between shades.
+        """
+
+        for name, color in self.colors.items():
+            for i in range(-shade_count, shade_count + 1):
+                if i == 0:
+                    key = name
+                    colorhex = color.hex
+
+                elif i < 0:
+                    key = f"{name}{i}"
+                    colorhex = color.darken(-i, step_size=shade_step).hex
+
+                else:
+                    key = f"{name}+{i}"
+                    colorhex = color.lighten(i, step_size=shade_step).hex
+
+                alias(**{key: colorhex, f"@{key}": f"@{colorhex}"}, ctx=ctx)

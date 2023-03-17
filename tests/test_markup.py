@@ -1,14 +1,7 @@
 import pytest
 
 from gunmetal import Span
-from zenith.markup import (
-    alias,
-    define,
-    markup,
-    markup_spans,
-    GLOBAL_MACROS,
-    GLOBAL_ALIASES,
-)
+from zenith.markup import alias, define, markup, markup_spans
 
 
 def test_markup_str_parse():
