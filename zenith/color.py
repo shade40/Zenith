@@ -64,7 +64,7 @@ def calculate_triadic_group(base: Color) -> tuple[Color, Color, Color]:
 def calculate_analogous_group(base: Color) -> tuple[Color, Color, Color]:
     """Returns the analogous group this color is within."""
 
-    return base.hue_shift(1 / 12), base, base.hue_shift(2 / 12)
+    return base, base.hue_shift(1 / 12), base.hue_shift(2 / 12)
 
 
 def calculate_tetradic_group(base: Color) -> tuple[Color, Color, Color, Color]:
