@@ -90,6 +90,11 @@ class Color:
         ) -> None:
             object.__setattr__(self, key, value)
 
+        if any(not 0 <= val < 256 for val in self.rgb):
+            raise ValueError(
+                f"Invalid RGB value {self.rgb!r}, for color; must be between 0 and 256"
+            )
+
         _set_field("luminance", calculate_luminance(self))
         _set_field("hls", rgb_to_hls(*(val / 256 for val in self.rgb)))
         _set_field("hex", "#" + "".join(f"{i:02X}" for i in self.rgb))
