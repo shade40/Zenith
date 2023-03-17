@@ -156,6 +156,7 @@ class Palette:  # pylint: disable=too-many-instance-attributes
     def alias(
         self,
         ctx: ContextMapping | None = None,
+        mapping: dict[str, Color] | None = None,
         shade_count: int = 3,
         shade_step: float = 0.1,
     ) -> None:
@@ -163,6 +164,8 @@ class Palette:  # pylint: disable=too-many-instance-attributes
 
         Args:
             ctx: The markup context to alias into. Defaults to the global context.
+            mapping: The name->color mapping used to set up the aliases. Defaults to
+                `self.colors`.
             shade_count: The number of shades that should be included on both the
                 positive and negative side. These are aliased as `{color}{+/-step}`,
                 like `primary+2` or `surface1-2`.
@@ -170,7 +173,9 @@ class Palette:  # pylint: disable=too-many-instance-attributes
                 controls the distance between shades.
         """
 
-        for name, color in self.colors.items():
+        mapping = mapping or self.colors
+
+        for name, color in mapping.items():
             for i in range(-shade_count, shade_count + 1):
                 if i == 0:
                     key = name
