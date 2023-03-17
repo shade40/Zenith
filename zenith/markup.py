@@ -22,6 +22,15 @@ class ContextMapping(TypedDict):
     aliases: dict[str, str]
     macros: dict[str, Callable[[str], str]]
 
+    @classmethod
+    def new(cls) -> ContextMapping:
+        """Creates a new context mapping."""
+
+        return {
+            "aliases": {},
+            "macros": {},
+        }
+
 
 class StyleStack(TypedDict):
     """A type to represent span styles."""
@@ -48,9 +57,7 @@ RE_COLOR = re.compile(
     r"(?:^@?([\d]{1,3})$)|(?:@?#?([0-9a-fA-F]{6}))|(@?\d{1,3};\d{1,3};\d{1,3})"
 )
 
-GLOBAL_ALIASES: dict[str, str] = {}
-GLOBAL_MACROS: dict[str, Callable[[str], str]] = {}
-GLOBAL_CONTEXT: ContextMapping = {"aliases": GLOBAL_ALIASES, "macros": GLOBAL_MACROS}
+GLOBAL_CONTEXT: ContextMapping = ContextMapping.new()
 
 BASE_STYLE_STACK = {
     "bold": False,
