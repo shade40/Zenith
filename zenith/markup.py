@@ -3,16 +3,27 @@
 from __future__ import annotations
 
 import re
-from typing import Generator, TypedDict, Callable, Hashable, cast, Iterable
+from typing import Callable, Generator, Hashable, Iterable, TypedDict, cast
+
 from gunmetal.span import UNSETTERS, Span
 
 from .color import Color
 from .color_info import CSS_COLORS
 from .lru_cache import LRUCache
 
+__all__ = [
+    "alias",
+    "define",
+    "FULL_RESET",
+    "parse_spans",
+    "markup",
+    "ContextMapping",
+    "GLOBAL_CONTEXT",
+]
+
 _markup_cache = LRUCache(1024)
 
-_full_reset = Span("FULL_RESET")
+FULL_RESET = Span("FULL_RESET")
 """A sentinel value to be used for signifying a full style reset (CSI 0)."""
 
 
@@ -296,7 +307,7 @@ def markup_spans(
 
         for tag in tags.split():
             if tag == "/":
-                yield _full_reset
+                yield FULL_RESET
 
             _apply_tag(tag)
 
@@ -331,7 +342,7 @@ def parse_spans(spans: Iterable[Span]) -> str:  # pylint: disable=too-many-branc
     span: Span | None = None
 
     for span in spans:
-        if span is _full_reset:
+        if span is FULL_RESET:
             buff += "\x1b[0m"
             hyperlink = style_stack["hyperlink"]
 

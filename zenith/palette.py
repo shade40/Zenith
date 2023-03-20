@@ -2,11 +2,19 @@
 
 from __future__ import annotations
 
-from typing import Callable
 from dataclasses import dataclass, field
+from typing import Callable
 
 from .color import Color
 from .markup import ContextMapping, alias
+
+__all__ = [
+    "triadic",
+    "analogous",
+    "tetradic",
+    "PalettingFunction",
+    "Palette",
+]
 
 PalettingFunction = Callable[[Color], tuple[Color, Color, Color, Color]]
 
@@ -98,8 +106,6 @@ class Palette:  # pylint: disable=too-many-instance-attributes
     surface3: Color = field(init=False)
     surface4: Color = field(init=False)
 
-    colors: dict[str, Color] = field(init=False)
-
     surface_blend_base: Color = DEFAULT_SURFACE
     success_blend_base: Color = DEFAULT_SUCCESS
     warning_blend_base: Color = DEFAULT_WARNING
@@ -133,7 +139,7 @@ class Palette:  # pylint: disable=too-many-instance-attributes
             alpha=SURFACE_BLEND_ALPHA,
         )
 
-        self.colors = {
+        self.color_mapping = {
             "primary": self.primary,
             "secondary": self.secondary,
             "tertiary": self.tertiary,
@@ -153,6 +159,21 @@ class Palette:  # pylint: disable=too-many-instance-attributes
 
         return Palette(Color.from_hex(primary), strategy=strategy)
 
+    @property
+    def color_mapping(self) -> dict[str, Color]:
+        """Returns a mapping of color names to their values.
+
+        Primarily used for aliasing.
+        """
+
+        return self._color_mapping
+
+    @color_mapping.setter
+    def color_mapping(self, new: dict[str, Color]) -> None:
+        """Sets the color mapping."""
+
+        self._color_mapping = new
+
     def alias(
         self,
         ctx: ContextMapping | None = None,
@@ -165,7 +186,7 @@ class Palette:  # pylint: disable=too-many-instance-attributes
         Args:
             ctx: The markup context to alias into. Defaults to the global context.
             mapping: The name->color mapping used to set up the aliases. Defaults to
-                `self.colors`.
+                `self.color_mapping`.
             shade_count: The number of shades that should be included on both the
                 positive and negative side. These are aliased as `{color}{+/-step}`,
                 like `primary+2` or `surface1-2`.
@@ -173,7 +194,7 @@ class Palette:  # pylint: disable=too-many-instance-attributes
                 controls the distance between shades.
         """
 
-        mapping = mapping or self.colors
+        mapping = mapping or self.color_mapping
 
         for name, color in mapping.items():
             for i in range(-shade_count, shade_count + 1):
@@ -190,3 +211,28 @@ class Palette:  # pylint: disable=too-many-instance-attributes
                     colorhex = color.lighten(i, step_size=shade_step).hex
 
                 alias(**{key: colorhex, f"@{key}": f"@{colorhex}"}, ctx=ctx)
+
+    def render(self) -> str:
+        """Returns markup that shows off the palette.
+
+        Note that this is done according to the current `color_mapping`.
+        """
+
+        length = len(max(self.color_mapping.keys(), key=len)) + 4
+
+        lines = [[] for _ in range(7)]
+
+        for name in self.color_mapping:
+            for i, shade in enumerate([str(i) for i in range(-3, 4)]):
+                if shade == "0":
+                    display = name
+                    identifier = name
+                    shade = ""
+
+                else:
+                    display = ""
+                    identifier = f"{name}{('+' if int(shade) > 0 else '') + shade}"
+
+                lines[i].append(f"[@{identifier}]{display:^{length}}")
+
+        return "\n".join(" ".join(line) for line in lines)

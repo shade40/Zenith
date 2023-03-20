@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from colorsys import rgb_to_hls, hls_to_rgb
+from colorsys import hls_to_rgb, rgb_to_hls
 from dataclasses import dataclass, field
 from functools import cached_property
 
 from .color_info import COLOR_TABLE
+
+__all__ = ["Color"]
 
 OFF_WHITE = (245, 245, 245)
 OFF_BLACK = (35, 35, 35)
