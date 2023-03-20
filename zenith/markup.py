@@ -52,7 +52,7 @@ class StyleStack(TypedDict):
 
 MarkupGroup = tuple[str, list[str]]
 
-RE_MARKUP = re.compile(r"(?:\[([^\[\]]+)\])?([^\]\[]+)(?=\[|$)")
+RE_MARKUP = re.compile(r"(?:\[([^\[\]]+)\])?([^\]\[]+)?")
 RE_COLOR = re.compile(
     r"(?:^@?([\d]{1,3})$)|(?:@?#?([0-9a-fA-F]{6}))|(@?\d{1,3};\d{1,3};\d{1,3})"
 )
@@ -217,6 +217,8 @@ def markup_spans(
     get_macro = ctx["macros"].get
     get_alias = ctx["aliases"].get
 
+    text = text.replace("][", " ")
+
     def _apply_tag(tag: str) -> None:
         """Parses and applies the given tag to the style stack.
 
@@ -285,7 +287,12 @@ def markup_spans(
         tags, plain = mtch.groups()
 
         if tags is None:
+            if plain is None:
+                continue
+
             tags = ""
+
+        plain = plain or ""
 
         for tag in tags.split():
             if tag == "/":

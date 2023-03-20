@@ -29,6 +29,10 @@ def test_markup_str_parse():
         "The never-ending \x1b]8;;https://google.com\x1b\\URI\x1b]8;;\x1b\\"
     ), repr(markup("The never-ending [~https://google.com]URI"))
 
+    assert markup("[blue][@red]This is hard to parse") == (
+        "\x1b[38;2;0;0;255;48;2;255;0;0mThis is hard to parse\x1b[0m"
+    )
+
 
 def test_markup_parse():
     assert list(markup_spans("[bold italic]Hello")) == [
