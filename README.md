@@ -1,21 +1,11 @@
-# cleur
+![zenith](https://singlecolorimage.com/get/afe1af/1600x200)
 
-[![PyPI - Version](https://img.shields.io/pypi/v/cleur.svg)](https://pypi.org/project/cleur)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/cleur.svg)](https://pypi.org/project/cleur)
+## zenith
 
------
+A library to spruce up your terminal.
 
-**Table of Contents**
-
-- [Installation](#installation)
-- [License](#license)
-
-## Installation
-
-```console
-pip install cleur
+```
+pip install zenith
 ```
 
-## License
-
-`cleur` is distributed under the terms of the [MIT](https://spdx.org/licenses/MIT.html) license.
+![rule](https://singlecolorimage.com/get/4A7A9F/1600x5)
