@@ -4,9 +4,9 @@ build-backend = "hatchling.build"
 
 [project]
 name = "zenith"
-description = ''
+description = "A markup language and color palette generators targeting the terminal."
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 license = "MIT"
 keywords = []
 authors = [
@@ -27,9 +27,9 @@ dependencies = ["gunmetal"]
 dynamic = ["version"]
 
 [project.urls]
-Documentation = "https://github.com/unknown/zenith#readme"
-Issues = "https://github.com/unknown/zenith/issues"
-Source = "https://github.com/unknown/zenith"
+Documentation = "https://github.com/shade40/zenith#readme"
+Issues = "https://github.com/shade40/zenith#issues"
+Source = "https://github.com/shade40/zenith"
 
 [tool.hatch.version]
 path = "zenith/__about__.py"

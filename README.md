@@ -2,7 +2,7 @@
 
 ## zenith
 
-A library to spruce up your terminal.
+A markup language and color palette generators targeting the terminal.
 
 ```
 pip install zenith
