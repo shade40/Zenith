@@ -104,7 +104,9 @@ def alias(
     ctx_aliases = ctx["aliases"]
 
     for key, value in aliases.items():
-        ctx_aliases[key.replace("_", "-")] = value
+        key = key if keep_case else key.replace("_", "-")
+
+        ctx_aliases[key] = value
 
 
 def define(
