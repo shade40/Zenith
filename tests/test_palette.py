@@ -1,6 +1,6 @@
 from zenith.color import Color
 from zenith.markup import ContextMapping
-from zenith.palette import Palette, triadic, analogous, tetradic
+from zenith.palette import Palette, analogous, tetradic, triadic
 
 
 def test_palette_triadic():

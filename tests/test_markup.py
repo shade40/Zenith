@@ -1,6 +1,6 @@
 import pytest
-
 from gunmetal import Span
+
 from zenith.markup import alias, define, markup, markup_spans
 
 
