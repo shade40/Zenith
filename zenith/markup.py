@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Callable, Generator, Hashable, Iterable, TypedDict, cast
 
-from gunmetal.span import UNSETTERS, Span
+from slate.span import UNSETTERS, Span
 
 from .color import Color
 from .color_info import CSS_COLORS

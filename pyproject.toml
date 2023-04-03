@@ -33,6 +33,12 @@ Source = "https://github.com/shade40/zenith"
 [tool.hatch.version]
 path = "zenith/__about__.py"
 
+[tool.hatch.build]
+include = [
+  "zenith/*.py",
+  "/tests",
+]
+
 [tool.hatch.envs.default]
 dependencies = [
   "pytest",
