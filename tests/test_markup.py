@@ -2,7 +2,7 @@ import time
 import pytest
 
 from zenith import zml, zml_alias, zml_macro, ZmlNameError, ZmlSemanticsError
-from zenith.markup import _parse_color
+from zenith.markup import parse_color
 
 
 def test_markup_builtin_only():
@@ -107,22 +107,22 @@ def test_markup_auto_foreground():
 
 
 def test_markup_colors():
-    assert _parse_color("red", False) == "38;2;255;0;0"
-    assert _parse_color("blue", True) == "48;2;0;0;255"
-    assert _parse_color("2", False) == "32"
-    assert _parse_color("9", False) == "91"
-    assert _parse_color("14", True) == "106"
-    assert _parse_color("78", True) == "48;5;78"
+    assert parse_color("red", False) == "38;2;255;0;0"
+    assert parse_color("blue", True) == "48;2;0;0;255"
+    assert parse_color("2", False) == "32"
+    assert parse_color("9", False) == "91"
+    assert parse_color("14", True) == "106"
+    assert parse_color("78", True) == "48;5;78"
     assert (
-        _parse_color("#baebae", True)
-        == _parse_color("186;235;174", True)
+        parse_color("#baebae", True)
+        == parse_color("186;235;174", True)
         == "48;2;186;235;174"
     )
 
 
 def test_markup_parse_errors():
     with pytest.raises(ZmlNameError):
-        _parse_color("256", False)
+        parse_color("256", False)
 
     with pytest.raises(ZmlNameError):
         zml("[not-a-tag]Hello")
