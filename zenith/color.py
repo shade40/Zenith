@@ -104,13 +104,13 @@ class Color:
     @classmethod
     def from_ansi(cls, ansi: str) -> Color:
         """Creates a color instance from an ANSI sequence's body."""
-
         parts = ansi.split(";")
+        is_background = parts[0].startswith("4")
+
         if len(parts) > 3:
-            is_background = parts[0].startswith("4")
 
             return Color(
-                (int(parts[2]), int(parts[3]), int(parts[3])),
+                (int(parts[2]), int(parts[3]), int(parts[4])),
                 is_background=is_background,
             )
 
@@ -119,7 +119,6 @@ class Color:
         # TODO: Handle garbage
 
         index = int(ansi)
-        is_background = False
 
         # Convert indices to 16-color
         if len(parts) == 1:
@@ -267,7 +266,8 @@ class Color:
                 int(red1 + (red2 - red1) * alpha),
                 int(green1 + (green2 - green1) * alpha),
                 int(blue1 + (blue2 - blue1) * alpha),
-            )
+            ),
+            is_background=self.is_background,
         )
 
     def blend_complement(self, alpha: float) -> Color:
