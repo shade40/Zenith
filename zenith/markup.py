@@ -152,7 +152,7 @@ def _apply_auto_foreground(styles: StyleMap) -> bool:
     return False
 
 
-def _parse_color(color: str, background: bool) -> str:
+def parse_color(color: str, background: bool) -> str:
     """Parses a color tag."""
 
     background *= 10
@@ -215,7 +215,7 @@ def _apply_tag(tag: str, styles: StyleMap) -> None:
 
     if RE_COLOR.match(tag) or tag in NAMED_COLORS:
         layer = "background" if is_background else "foreground"
-        styles[layer] = _parse_color(tag, is_background)
+        styles[layer] = parse_color(tag, is_background)
         return
 
     if tag.startswith("~"):
