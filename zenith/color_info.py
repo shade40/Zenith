@@ -414,3 +414,13 @@ CSS_COLORS = {
     "yellow": "#ffff00",
     "yellowgreen": "#9acd32",
 }
+
+NAMED_COLORS = {
+    **CSS_COLORS,
+    **{
+        "slate": "#717e8d",
+        "zenith": "#4a7a9f",
+        "celadon": "#afe1af",
+        "carmine": "#d70040",
+    },
+}

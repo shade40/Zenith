@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from .color import Color
-from .markup import ContextMapping, alias
+from .markup import MarkupContext, zml_alias
 
 __all__ = [
     "triadic",
@@ -210,7 +210,7 @@ class Palette:  # pylint: disable=too-many-instance-attributes
                     key = f"{name}+{i}"
                     colorhex = color.lighten(i, step_size=shade_step).hex
 
-                alias(**{key: colorhex, f"@{key}": f"@{colorhex}"}, ctx=ctx)
+                zml_alias(**{key: colorhex, f"@{key}": f"@{colorhex}"}, ctx=ctx)
 
     def render(self) -> str:
         """Returns markup that shows off the palette.

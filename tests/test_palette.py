@@ -1,5 +1,5 @@
 from zenith.color import Color
-from zenith.markup import ContextMapping
+from zenith.markup import zml_context
 from zenith.palette import Palette, analogous, tetradic, triadic
 
 
@@ -32,7 +32,7 @@ def test_palette_tetradic():
 
 def test_palette_alias():
     pal = Palette.from_hex("#42DFBC")
-    ctx = ContextMapping.new()
+    ctx = zml_context()
 
     pal.alias(ctx=ctx)
 

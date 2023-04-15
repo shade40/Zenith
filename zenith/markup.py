@@ -1,50 +1,103 @@
-"""Zenith's markup language and its related utilities."""
-
 from __future__ import annotations
 
 import re
-from typing import Callable, Generator, Hashable, Iterable, TypedDict, cast
 
-from slate.span import UNSETTERS, Span
+from functools import lru_cache
+from typing import Callable, TypedDict
+
+from slate.span import UNSETTERS, SETTERS_TO_STYLES, Span
 
 from .color import Color
-from .color_info import CSS_COLORS
+from .color_info import NAMED_COLORS
+from .exceptions import ZmlNameError, ZmlSemanticsError
 from .lru_cache import LRUCache
 
 __all__ = [
-    "alias",
-    "define",
-    "FULL_RESET",
-    "parse_spans",
-    "markup",
-    "ContextMapping",
+    "zml",
+    "zml_alias",
+    "zml_macro",
+    "combine_spans",
+    "zml_get_spans",
+    "zml_context",
+    "MarkupContext",
     "GLOBAL_CONTEXT",
 ]
 
-_markup_cache = LRUCache(1024)
+MacroType = Callable[[str], str]
 
 FULL_RESET = Span("FULL_RESET")
 """A sentinel value to be used for signifying a full style reset (CSI 0)."""
 
+RE_MARKUP = re.compile(r"(?:\[([^\[\]]+)\])?([^\]\[]+)?")
+RE_COLOR = re.compile(
+    r"(?:^@?([\d]{1,3})$)|(?:@?#?([0-9a-fA-F]{6}))|(@?\d{1,3};\d{1,3};\d{1,3})"
+)
 
-class ContextMapping(TypedDict):
-    """A type to repersent markup contexts."""
+
+class MarkupContext(TypedDict):
+    """A ctx mapping that stores alias & macro information."""
 
     aliases: dict[str, str]
-    macros: dict[str, Callable[[str], str]]
-
-    @classmethod
-    def new(cls) -> ContextMapping:
-        """Creates a new context mapping."""
-
-        return {
-            "aliases": {},
-            "macros": {},
-        }
+    macros: dict[str, MacroType]
 
 
-class StyleStack(TypedDict):
-    """A type to represent span styles."""
+def zml_context() -> MarkupContext:
+    """Generates an empty MarkupContext object."""
+
+    return {"aliases": {}, "macros": {}}
+
+
+GLOBAL_CONTEXT = zml_context()
+
+
+def zml_macro_setter(*, ctx: MarkupContext) -> Callable[[MacroType], MacroType]:
+    """Returns a decorator that will define a macro in the given context."""
+
+    def _define(macro: MacroType) -> MacroType:
+        name = macro.__name__.replace("_", "-")
+
+        ctx["macros"][f"!{name}"] = macro
+
+    return _define
+
+
+zml_macro = zml_macro_setter(ctx=GLOBAL_CONTEXT)
+"""A macro setter for the global context."""
+
+
+def _find_unsetter(tag: str) -> str:
+    """Finds the unsetter for the given tag."""
+
+    if tag.startswith("!"):
+        return tag
+
+    key = tag
+
+    if RE_COLOR.match(tag) or tag in NAMED_COLORS:
+        key = "bg" if tag.startswith("@") else "fg"
+
+    return f"/{key}"
+
+
+def zml_alias(
+    *, ctx: MarkupContext | None = None, assign_unsetter: bool = True, **pairs: str
+) -> None:
+    """Aliases each item of the given pairs."""
+
+    if assign_unsetter:
+        for key, value in pairs.copy().items():
+            pairs[f"/{key}"] = " ".join(_find_unsetter(part) for part in value.split())
+
+    ctx = ctx or GLOBAL_CONTEXT
+
+    aliases = ctx["aliases"]
+
+    for key, value in pairs.items():
+        aliases[key.replace("_", "-")] = value
+
+
+class StyleMap(TypedDict):
+    """A type to keep track of span styles."""
 
     bold: bool
     dim: bool
@@ -61,78 +114,49 @@ class StyleStack(TypedDict):
     hyperlink: str
 
 
-MarkupGroup = tuple[str, list[str]]
+def _get_style_map() -> StyleMap:
+    """Generates an empty StyleMap object."""
 
-RE_MARKUP = re.compile(r"(?:\[([^\[\]]+)\])?([^\]\[]+)?")
-RE_COLOR = re.compile(
-    r"(?:^@?([\d]{1,3})$)|(?:@?#?([0-9a-fA-F]{6}))|(@?\d{1,3};\d{1,3};\d{1,3})"
-)
-
-GLOBAL_CONTEXT: ContextMapping = ContextMapping.new()
-
-BASE_STYLE_STACK = {
-    "bold": False,
-    "dim": False,
-    "italic": False,
-    "underline": False,
-    "blink": False,
-    "fast_blink": False,
-    "invert": False,
-    "conceal": False,
-    "strike": False,
-    "foreground": "",
-    "background": "",
-    "hyperlink": "",
-}
+    return {
+        "bold": False,
+        "dim": False,
+        "italic": False,
+        "underline": False,
+        "blink": False,
+        "fast_blink": False,
+        "invert": False,
+        "conceal": False,
+        "strike": False,
+        "foreground": "",
+        "background": "",
+        "hyperlink": "",
+    }
 
 
-def alias(
-    *,
-    ctx: ContextMapping | None = None,
-    keep_case: bool = False,
-    **aliases: tuple[str, str],
-) -> None:
-    """Sets up an alias in the given context.
+def _apply_auto_foreground(styles: StyleMap) -> bool:
+    """Determines whether automatic foreground can be applied to the style map."""
 
-    Args:
-        **aliases: Key=value pairs to alias, like `alias(my_alias="141", my_alias_2="61")`.
-        ctx: The context to alias within. Defaults to the global context.
-        keep_case: If set, alias keys won't be kebab-cased (my_alias -> my-alias).
-    """
+    foreground = styles["foreground"]
+    background = styles["background"]
 
-    ctx = ctx or GLOBAL_CONTEXT
-    ctx_aliases = ctx["aliases"]
+    invert = styles["invert"]
+    if invert:
+        foreground, background = background, foreground
 
-    for key, value in aliases.items():
-        key = key if keep_case else key.replace("_", "-")
+    if foreground == "" and background != "":
+        new = Color.from_ansi(background).contrast.as_background(invert).ansi
 
-        ctx_aliases[key] = value
+        styles["background" if invert else "foreground"] = new
+        return True
+
+    return False
 
 
-def define(
-    identifier: str, value: Callable[[str], str], ctx: ContextMapping | None = None
-) -> None:
-    """Defines a markup macro within the given context.
+def _parse_color(color: str, background: bool) -> str:
+    """Parses a color tag."""
 
-    Args:
-        identifier: The name the macro can be referenced by. Must start with '!'.
-        value: The callback that is executed by the macro. This takes the partially
-            parsed output at the moment the macro is found, and returns some
-            modification of it.
-        ctx: The context to alias within. Defaults to the global context.
-    """
+    background *= 10
 
-    if not identifier.startswith("!"):
-        raise ValueError(
-            "Macro identifiers must start with `!`, {identifier!r} doesn't."
-        )
-
-    ctx = ctx or GLOBAL_CONTEXT
-    ctx["macros"][identifier] = value
-
-
-def _parse_color(color: str) -> str:
-    background = color.startswith("@") * 10
     color = color.lstrip("@")
 
     if color.isdigit():
@@ -148,13 +172,12 @@ def _parse_color(color: str) -> str:
         if index < 256:
             return f"{38 + background};5;{index}"
 
-        raise ValueError(
-            f"Could not parse indexed color {color!r};"
-            " it should be between 0 and 16, or 16 and 255."
+        raise ZmlNameError(
+            color, "Color tags should be in the range 0-255.", expected_type="color"
         )
 
-    # Substitute CSS's named colors when possible
-    color = CSS_COLORS.get(color, color)
+    # Substitute named colors when possible
+    color = NAMED_COLORS.get(color, color)
 
     if color.startswith("#"):
         color = color.lstrip("#")
@@ -166,275 +189,252 @@ def _parse_color(color: str) -> str:
     return f"{38 + background};2;{color}"
 
 
-def _apply_auto_foreground(style_stack: dict[str, bool | str]) -> bool:
-    """Applies contrasting foreground colors when none are set."""
+def _apply_tag(tag: str, styles: StyleMap) -> None:
+    """Applies the given tag to the style map.
 
-    back = style_stack.get("background") or None
-    fore = style_stack.get("foreground") or None
-
-    if style_stack["invert"]:
-        back, fore = fore, back
-
-    if not (fore is None and back is not None):
-        return False
-
-    assert isinstance(back, str)
-
-    style_stack["foreground"] = Color.from_ansi(back).contrast.as_background(False).ansi
-    return True
-
-
-def _get_hashable_key(text: str, ctx: ContextMapping, prefix: str) -> Hashable:
-    """Combines the given text and context into something that is hashable.
-
-    Args:
-        text: The text input into the markup function.
-        ctx: The markup context.
-        prefix: The prefix used for looking up aliases and macros.
-
-    Returns:
-        A tuple, containing all the information passed in under a hashable format.
+    Note that this mutates the given map!
     """
 
-    return (
-        text,
-        (
-            ("aliases", tuple((key, value) for key, value in ctx["aliases"].items())),
-            ("macros", tuple((key, value) for key, value in ctx["macros"].items())),
-        ),
-        prefix,
-    )
+    if tag == "/":
+        styles.update(**_get_style_map())
+        return
+
+    is_unsetter = tag.startswith("/")
+    is_background = tag.startswith("@")
+
+    tag = tag.lstrip("/").lstrip("@")
+
+    if tag in styles or tag in ["fg", "bg"]:
+        if tag in ["fg", "bg"]:
+            styles["foreground" if tag == "fg" else "background"] = ""
+
+        else:
+            styles[tag] = not is_unsetter
+
+        return
+
+    if RE_COLOR.match(tag) or tag in NAMED_COLORS:
+        layer = "background" if is_background else "foreground"
+        styles[layer] = _parse_color(tag, is_background)
+        return
+
+    if tag.startswith("~"):
+        styles["hyperlink"] = "" if is_unsetter else tag[1:]
+        return
+
+    raise ZmlNameError(tag)
 
 
-def markup_spans(
-    text: str, ctx: ContextMapping | None = None, prefix: str = ""
-) -> Generator[Span, None, None]:
-    """Generates Span objects representative of the markup text given.
+def _parse_macro(tag: str) -> tuple[MacroType, tuple[str, ...]]:
+    """Parses the given macro into its name and arguments."""
 
-    Aliases are evaluated first, followed by macros. After that, the resulting markup is
-    parsed.
+    args_start = tag.find("(")
 
-    Args:
-        text: Some markup string.
-        ctx: A context mapping to get aliases and macros from. Defaults to the global
-            context.
-        prefix: The prefix to apply when looking up aliases and macros. Use this to
-            compartmentalize markup aliases to each user library.
+    if args_start == -1:
+        return tag, []
 
-    Yields:
-        Spans, as they occur in the markup. Each span represents a plain bit, styled by
-        the current style stack.
+    args = tag[args_start + 1 : -1].split(",")
+
+    return tag[:args_start], args
+
+
+def _apply_prefix(tag: str, prefix: str) -> str:
+    """Applies the prefix to the given tag.
+
+    Most importantly, this function can recognize `@tags`, and insert the prefix to the
+    correct spot (between `@` and the first letter).
     """
 
-    def _add_prefix(key: str) -> str:
-        """Adds `prefix` to the given key."""
+    if tag.startswith("@"):
+        return "@" + prefix + tag[1:]
 
-        if key.startswith("@"):
-            return "@" + prefix + key[1:]
-
-        return prefix + key
-
-    ctx = ctx or GLOBAL_CONTEXT
-
-    style_stack = cast("dict[str, str | bool]", BASE_STYLE_STACK.copy())
-    macros: list[Callable[[str], str]] = []
-
-    get_macro = ctx["macros"].get
-    get_alias = ctx["aliases"].get
-
-    text = text.replace("][", " ")
-
-    def _apply_tag(tag: str) -> None:
-        """Parses and applies the given tag to the style stack.
-
-        Args:
-            tag: The markup tag to apply.
-        """
-
-        is_setter = not tag.startswith("/")
-        tag = tag.lstrip("/")
-
-        if tag == "" and not is_setter:
-            style_stack.update(**BASE_STYLE_STACK)  # type: ignore
-
-            return
-
-        # Style setters and color unsetters
-        if tag in style_stack or tag in ["fg", "bg"]:
-            if tag in ["fg", "bg"]:
-                style_stack["foreground" if tag == "fg" else "background"] = ""
-            else:
-                style_stack[tag] = is_setter
-
-            return
-
-        # Colors
-        if RE_COLOR.match(tag) or tag.lstrip("@") in CSS_COLORS:
-            layer = "background" if tag.startswith("@") else "foreground"
-            style_stack[layer] = _parse_color(tag)
-            return
-
-        # Macros
-        if tag.startswith("!"):
-            macro = get_macro(_add_prefix(tag), None)
-
-            if macro is None:
-                raise ValueError(f"Undefined macro {tag!r}.")
-
-            if not is_setter:
-                try:
-                    macros.remove(macro)
-                except ValueError:
-                    raise ValueError(
-                        f"Macro {tag!r} is not set, so it can't be unset."
-                    ) from None
-
-                return
-
-            macros.append(macro)
-            return
-
-        # Hyperlinks
-        if tag.startswith("~"):
-            style_stack["hyperlink"] = "" if not is_setter else tag.lstrip("~")
-            return
-
-        # Aliases
-        found_alias = get_alias(_add_prefix(tag))
-
-        if found_alias is None:
-            raise ValueError(f"Unknown tag {tag!r}.")
-
-        for part in found_alias.split():
-            _apply_tag(part)
-
-    for mtch in RE_MARKUP.finditer(text):
-        tags, plain = mtch.groups()
-
-        if tags is None:
-            if plain is None:
-                continue
-
-            tags = ""
-
-        plain = plain or ""
-
-        for tag in tags.split():
-            if tag == "/":
-                yield FULL_RESET
-
-            _apply_tag(tag)
-
-        # TODO: Yield macros to consumer to allow smartly caching things.
-        for macro in macros:
-            plain = macro(plain)
-
-        should_delete_foreground = _apply_auto_foreground(style_stack)
-
-        yield Span(plain, **style_stack)
-
-        if should_delete_foreground:
-            del style_stack["foreground"]
+    return prefix + tag
 
 
-def parse_spans(spans: Iterable[Span]) -> str:  # pylint: disable=too-many-branches
-    """Parses spans into an optimized ANSI string.
+@lru_cache(512)
+def combine_spans(spans: tuple[Span, ...]) -> str:
+    """Combines the given span iterable into optimized ANSI text."""
 
-    Args:
-        spans: Any iterable of spans.
-
-    Returns:
-        The ANSI styled text the input spans represent. Optimizations are done
-        in many places to reduce the output's length and noise.
-    """
-
-    style_stack: StyleStack = cast(StyleStack, BASE_STYLE_STACK.copy())
+    styles = _get_style_map()
 
     buff = ""
     hyperlink = ""
-
     span: Span | None = None
 
     for span in spans:
         if span is FULL_RESET:
             buff += "\x1b[0m"
-            hyperlink = style_stack["hyperlink"]
-
-            style_stack.update(**BASE_STYLE_STACK)  # type: ignore
-            style_stack["hyperlink"] = hyperlink
-
+            styles = _get_style_map()
             continue
 
-        stack = BASE_STYLE_STACK.copy()
+        new = {}
         unset = []
 
         for key, value in span.attrs.items():
-            if key not in style_stack:
+            if key in ["text", "reset_after"]:
                 continue
 
-            if key == "hyperlink":
-                stack[key] = value
+            if key == "hyperlink" and value not in ["", styles[key]]:
+                new[key] = value
+                continue
 
-            if style_stack[key] != value:  # type: ignore
-                if value:
-                    stack[key] = value
+            if styles[key] != value:
+                new[key] = value
 
-                else:
+                if not value and key != "hyperlink":
                     unset.append(key)
 
-        if unset:
-            if unset != ["hyperlink"]:
-                buff += (
-                    "\x1b["
-                    + ";".join(
-                        UNSETTERS.get(key) for key in unset if key != "hyperlink"
-                    )
-                    + "m"
-                )
+        if len(unset) > 0:
+            # TODO: Maybe this could insert into the span's sequences?
+            buff += "\x1b["
 
-            if "hyperlink" in unset:
-                buff += "\x1b]8;;\x1b\\"
+            for key in unset:
+                buff += UNSETTERS[key] + ";"
 
-        buff += str(span.mutate(reset_after=False, **stack))
-        buff = buff.removesuffix("\x1b]8;;\x1b\\")
+            buff = buff.rstrip(";") + "m"
 
-        style_stack.update(**stack)  # type: ignore
-
-    if span is not None:
-        if any(span.attrs[key] for key in style_stack if key != "hyperlink"):
-            buff += "\x1b[0m"
-
-        if span.hyperlink != "":
-            buff += "\x1b]8;;\x1b\\"
+        buff += str(Span(text=span.text, reset_after=False, **new))
+        styles.update(**new)
 
     return buff
 
 
-def markup(text: str, ctx: ContextMapping | None = None, prefix: str = "") -> str:
-    """Parses the given markup as a string.
+@lru_cache(512)
+def zml_get_spans(text: str) -> tuple[Span, ...]:
+    """Gets all spans from the given ZML text."""
 
-    Under the hood, this joins the `Span` object generated by `markup_spans`.
+    styles: StyleMap = _get_style_map()
+    spans: list[Span] = []
 
-    Args:
-        text: Some markup string.
-        ctx: A context mapping to get aliases and macros from. Defaults to the
-            global context.
-        prefix: The prefix to apply when looking up aliases and macros. Use this to
-            compartmentalize markup aliases to each user library.
+    for mtch in RE_MARKUP.finditer(text):
+        tags, plain = mtch.groups()
 
-    Returns:
-        The parsed string that is represented by the given markup.
+        # No tags or plain value, likely at the end of the string.
+        if tags == plain == None:
+            continue
+
+        tags = tags or ""
+        plain = plain or ""
+
+        for tag in tags.split():
+            if tag == "/":
+                spans.append(FULL_RESET)
+
+            _apply_tag(tag, styles)
+
+        auto_fg = _apply_auto_foreground(styles)
+
+        spans.append(Span(plain, **styles))
+
+        if auto_fg:
+            styles["foreground"] = ""
+
+    return (*spans,)
+
+
+def zml_pre_process(text: str, prefix: str = "", ctx: MarkupContext = None) -> str:
+    """Applies pre-processing to the given ZML text.
+
+    Currently, this involves three steps:
+
+    - Substitute all aliases with their real values
+    - Evaluate macros on the plain text
+    - Eliminate groups that don't contain a plain part
     """
 
     ctx = ctx or GLOBAL_CONTEXT
 
-    hashable_key = _get_hashable_key(text, ctx, prefix)
+    aliased = ""
+    for mtch in RE_MARKUP.finditer(text):
+        tags, plain = mtch.groups()
 
-    if hashable_key in _markup_cache:
-        return _markup_cache[hashable_key]
+        if tags == plain == None:
+            continue
 
-    buff = parse_spans(markup_spans(text, ctx, prefix))
+        if tags is not None:
+            aliased += "["
 
-    _markup_cache[hashable_key] = buff
+            for tag in tags.split():
+                prefixed = _apply_prefix(tag, prefix)
 
-    return buff
+                if prefixed in ctx["aliases"]:
+                    tag = ctx["aliases"][prefixed]
+
+                aliased += tag + " "
+
+            aliased = aliased.rstrip(" ") + "]"
+
+        if plain is not None:
+            aliased += plain
+
+    text = aliased
+
+    macros: dict[str, tuple[MacroType, tuple[str, ...]]] = {}
+    get_macro = ctx["macros"].get
+
+    output = ""
+    for mtch in RE_MARKUP.finditer(text):
+        tags, plain = mtch.groups()
+
+        # No tags or plain value, likely at the end of the string.
+        if tags == plain == None:
+            continue
+
+        tags = tags or ""
+        plain = plain or ""
+
+        tag_list = tags.split()
+
+        for tag in tag_list.copy():
+            if tag == "/":
+                macros.clear()
+                continue
+
+            if not tag.startswith(("!", "/!")):
+                continue
+
+            if tag.startswith("/!"):
+                name = tag[1:]
+
+                if name not in macros:
+                    raise ZmlSemanticsError(
+                        name,
+                        f"Cannot unset a macro when that isn't set.",
+                        expected_type="macro",
+                    )
+
+                del macros[name]
+
+            else:
+                name, args = _parse_macro(tag)
+                macro = get_macro(_apply_prefix(name, prefix), None)
+
+                if macro is None:
+                    raise ZmlNameError(tag, expected_type="macro")
+
+                macros[name] = (macro, args)
+
+            tag_list.remove(tag)
+
+        if len(tag_list) > 0:
+            output += f"[{' '.join(tag_list)}]"
+
+        if plain is not None:
+            for macro, args in macros.values():
+                plain = macro(plain, *args)
+
+            output += plain
+
+    return output.replace("][", " ")
+
+
+def zml(markup: str, prefix: str = "", ctx: MarkupContext | None = None) -> str:
+    """Parses ZML markup into optimized ANSI text.
+
+    DOCUMENT THIS
+    """
+
+    # TODO: This step should be cached/done smarter. It takes ages!
+    markup = zml_pre_process(markup, prefix=prefix, ctx=ctx)
+
+    return combine_spans(zml_get_spans(markup))
