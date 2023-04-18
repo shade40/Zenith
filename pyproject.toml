@@ -30,6 +30,9 @@ Documentation = "https://github.com/shade40/zenith#readme"
 Issues = "https://github.com/shade40/zenith#issues"
 Source = "https://github.com/shade40/zenith"
 
+[project.scripts]
+zml = "zenith.__main__:command_zml"
+
 [tool.hatch.version]
 path = "zenith/__about__.py"
 
