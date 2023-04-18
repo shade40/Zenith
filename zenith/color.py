@@ -94,7 +94,7 @@ class Color:
 
         if any(not 0 <= val < 256 for val in self.rgb):
             raise ValueError(
-                f"Invalid RGB value {self.rgb!r}, for color; must be between 0 and 256"
+                f"Color RGB values must be between 0 and 256, got {self.rgb!r}."
             )
 
         _set_field("luminance", calculate_luminance(self))
@@ -108,6 +108,11 @@ class Color:
         is_background = parts[0].startswith("4")
 
         if len(parts) > 3:
+            if parts[:2] not in [["38", "2"], ["48", "2"]]:
+                raise ValueError(
+                    "Only colors with prefixes `38;2` and `48;2` are allowed,"
+                    + f" got {ansi!r}."
+                )
 
             return Color(
                 (int(parts[2]), int(parts[3]), int(parts[4])),
@@ -115,8 +120,6 @@ class Color:
             )
 
         ansi = parts[-1]
-
-        # TODO: Handle garbage
 
         index = int(ansi)
 
@@ -135,6 +138,17 @@ class Color:
             elif 100 <= index < 108:
                 index -= 92
                 is_background = True
+
+        else:
+            raise ValueError(
+                f"Color ANSI codes must have either one 3 or 5 segments, got {ansi}."
+            )
+
+        if not 0 <= index < 256:
+            raise ValueError(
+                "Color ANSI index must be between 0 and 256,"
+                + f" got {index!r} from {ansi!r}."
+            )
 
         return Color(COLOR_TABLE[index], is_background=is_background)
 
