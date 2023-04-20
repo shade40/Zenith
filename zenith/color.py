@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from colorsys import hls_to_rgb, rgb_to_hls
 from dataclasses import dataclass, field
-from functools import cached_property
+from functools import cached_property, lru_cache
 
 from .color_info import COLOR_TABLE
 
@@ -170,13 +170,13 @@ class Color:
     def black(cls) -> Color:
         """Returns a 100% black."""
 
-        return Color((0, 0, 0))
+        return BLACK
 
     @classmethod
     def white(cls) -> Color:
         """Returns a 100% white."""
 
-        return Color((255, 255, 255))
+        return WHITE
 
     @cached_property
     def ansi(self) -> str:
@@ -260,6 +260,7 @@ class Color:
             is_background=self.is_background,
         )
 
+    @lru_cache
     def blend(self, other: Color, alpha: float) -> Color:
         """Blends this color with other by a certain alpha.
 
@@ -296,5 +297,8 @@ class Color:
         return self.blend(self.complement, alpha)
 
 
-DEFAULT_WHITE = Color((245, 245, 245))
-DEFAULT_BLACK = Color((35, 35, 35))
+WHITE = Color((255, 255, 255))
+BLACK = Color((0, 0, 0))
+
+DEFAULT_WHITE = Color(OFF_WHITE)
+DEFAULT_BLACK = Color(OFF_BLACK)

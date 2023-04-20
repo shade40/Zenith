@@ -1,5 +1,6 @@
 from time import strftime
 from typing import Literal
+from functools import lru_cache
 
 from .color import Color
 from .color_info import NAMED_COLORS
@@ -35,6 +36,7 @@ def time(template: str, time_format: str = "%s") -> str:
 
 
 @zml_macro
+@lru_cache
 def gradient(
     text: str, origin: str, method: Literal["shade", "rainbow"] = "shade"
 ) -> str:
