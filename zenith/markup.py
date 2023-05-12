@@ -248,6 +248,9 @@ def _apply_prefix(tag: str, prefix: str) -> str:
     if tag.startswith("@"):
         return "@" + prefix + tag[1:]
 
+    if tag.startswith("!"):
+        return "!" + prefix + tag[1:]
+
     return prefix + tag
 
 
@@ -407,10 +410,11 @@ def zml_pre_process(text: str, prefix: str = "", ctx: MarkupContext = None) -> s
 
             else:
                 name, args = _parse_macro(tag)
-                macro = get_macro(_apply_prefix(name, prefix), None)
+                prefixed = _apply_prefix(name, prefix)
+                macro = get_macro(prefixed, None)
 
                 if macro is None:
-                    raise ZmlNameError(tag, expected_type="macro")
+                    raise ZmlNameError(prefixed, expected_type="macro")
 
                 macros[name] = (macro, args)
 
