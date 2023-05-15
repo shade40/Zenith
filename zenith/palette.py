@@ -5,7 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable
 
-from .color import Color
+from slate.color import Color
+
 from .markup import MarkupContext, zml_alias
 
 __all__ = [

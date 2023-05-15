@@ -6,9 +6,9 @@ from functools import lru_cache
 from typing import Callable, TypedDict
 
 from slate.span import UNSETTERS, SETTERS_TO_STYLES, Span
+from slate.color import Color
+from slate.color_info import NAMED_COLORS
 
-from .color import Color
-from .color_info import NAMED_COLORS
 from .exceptions import ZmlNameError, ZmlSemanticsError
 from .lru_cache import LRUCache
 
@@ -18,6 +18,7 @@ __all__ = [
     "zml_macro",
     "combine_spans",
     "zml_get_spans",
+    "zml_pre_process",
     "zml_context",
     "MarkupContext",
     "GLOBAL_CONTEXT",

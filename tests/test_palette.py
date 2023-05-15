@@ -1,4 +1,4 @@
-from zenith.color import Color
+from slate.color import Color
 from zenith.markup import zml_context
 from zenith.palette import Palette, analogous, tetradic, triadic
 

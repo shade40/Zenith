@@ -45,7 +45,7 @@ def test_markup_aliases():
 
     assert (
         result := zml("[test]Hello[/test]Reset")
-    ) == "\x1b[38;2;165;42;42;1mHello\x1b[39;22mReset", repr(result)
+    ) == "\x1b[38;2;165;42;42;1mHello\x1b[22;39mReset", repr(result)
 
 
 def test_markup_macros():
