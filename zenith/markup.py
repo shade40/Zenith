@@ -110,8 +110,8 @@ class StyleMap(TypedDict):
     conceal: bool
     strike: bool
 
-    foreground: str
-    background: str
+    foreground: Color | None
+    background: Color | None
     hyperlink: str
 
 
@@ -128,8 +128,8 @@ def _get_style_map() -> StyleMap:
         "invert": False,
         "conceal": False,
         "strike": False,
-        "foreground": "",
-        "background": "",
+        "foreground": None,
+        "background": None,
         "hyperlink": "",
     }
 
@@ -145,7 +145,7 @@ def _apply_auto_foreground(styles: StyleMap) -> bool:
         foreground, background = background, foreground
 
     if foreground == "" and background != "":
-        new = Color.from_ansi(background).contrast.as_background(invert).ansi
+        new = Color.from_ansi(background).contrast.as_background(invert)
 
         styles["background" if invert else "foreground"] = new
         return True
@@ -207,16 +207,21 @@ def _apply_tag(tag: str, styles: StyleMap) -> None:
 
     if tag in styles or tag in ["fg", "bg"]:
         if tag in ["fg", "bg"]:
-            styles["foreground" if tag == "fg" else "background"] = ""
+            styles["foreground" if tag == "fg" else "background"] = None
 
         else:
             styles[tag] = not is_unsetter
 
         return
 
-    if RE_COLOR.match(tag) or tag in NAMED_COLORS:
-        layer = "background" if is_background else "foreground"
-        styles[layer] = parse_color(tag, is_background)
+    layer = "background" if is_background else "foreground"
+
+    if RE_COLOR.match(tag):
+        styles[layer] = Color.from_ansi(parse_color(tag, is_background))
+        return
+
+    if tag in NAMED_COLORS:
+        styles[layer] = Color.from_hex(NAMED_COLORS[tag])
         return
 
     if tag.startswith("~"):
@@ -331,7 +336,7 @@ def zml_get_spans(text: str) -> tuple[Span, ...]:
         spans.append(Span(plain, **styles))
 
         if auto_fg:
-            styles["foreground"] = ""
+            styles["foreground"] = None
 
     return (*spans,)
 
