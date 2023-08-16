@@ -15,6 +15,7 @@ from .lru_cache import LRUCache
 __all__ = [
     "zml",
     "zml_alias",
+    "zml_escape",
     "zml_macro",
     "combine_spans",
     "zml_get_spans",
@@ -144,8 +145,8 @@ def _apply_auto_foreground(styles: StyleMap) -> bool:
     if invert:
         foreground, background = background, foreground
 
-    if foreground == "" and background != "":
-        new = Color.from_ansi(background).contrast.as_background(invert)
+    if foreground is None and background is not None:
+        new = background.contrast.as_background(invert)
 
         styles["background" if invert else "foreground"] = new
         return True
@@ -221,7 +222,8 @@ def _apply_tag(tag: str, styles: StyleMap) -> None:
         return
 
     if tag in NAMED_COLORS:
-        styles[layer] = Color.from_hex(NAMED_COLORS[tag])
+        styles[layer] = Color.from_hex(NAMED_COLORS[tag]).as_background(is_background)
+
         return
 
     if tag.startswith("~"):
@@ -438,13 +440,38 @@ def zml_pre_process(text: str, prefix: str = "", ctx: MarkupContext = None) -> s
     return output.replace("][", " ")
 
 
-def zml(markup: str, prefix: str = "", ctx: MarkupContext | None = None) -> str:
+def zml_escape(text: str) -> str:
+    """Escapes non-intended ZML tags."""
+
+    return text.replace("[", r"\[").replace("]", r"\]")
+
+
+def _escape(text: str, replacements: tuple[str, str]) -> str:
+    """Escapes ZML-syntax characters with the given replacements."""
+
+    return text.replace("\[", replacements[0]).replace("\]", replacements[1])
+
+
+def _unescape(text: str, replacements: tuple[str, str]) -> str:
+    """Escapes ZML-syntax characters with the given replacements."""
+
+    return text.replace(replacements[0], "[").replace(replacements[1], "]")
+
+
+def zml(
+    markup: str,
+    prefix: str = "",
+    ctx: MarkupContext | None = None,
+    escape_replacements: tuple[str, str] = ("{{{{", "}}}}"),
+) -> str:
     """Parses ZML markup into optimized ANSI text.
 
     DOCUMENT THIS
     """
 
+    markup = _escape(markup, escape_replacements)
+
     # TODO: This step should be cached/done smarter. It takes ages!
     markup = zml_pre_process(markup, prefix=prefix, ctx=ctx)
 
-    return combine_spans(zml_get_spans(markup))
+    return _unescape(combine_spans(zml_get_spans(markup)), escape_replacements)
