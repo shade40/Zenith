@@ -39,6 +39,7 @@ path = "zenith/__about__.py"
 [tool.hatch.build]
 include = [
   "zenith/*.py",
+  "zenith/py.typed",
   "/tests",
 ]
 
