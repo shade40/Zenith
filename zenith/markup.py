@@ -3,14 +3,13 @@ from __future__ import annotations
 import re
 
 from functools import lru_cache
-from typing import Callable, TypedDict
+from typing import Callable, TypedDict, Literal
 
-from slate.span import UNSETTERS, SETTERS_TO_STYLES, Span
+from slate.span import UNSETTERS, Span
 from slate.color import Color
 from slate.color_info import NAMED_COLORS
 
 from .exceptions import ZmlNameError, ZmlSemanticsError
-from .lru_cache import LRUCache
 
 __all__ = [
     "zml",
@@ -59,6 +58,8 @@ def zml_macro_setter(*, ctx: MarkupContext) -> Callable[[MacroType], MacroType]:
         name = macro.__name__.replace("_", "-")
 
         ctx["macros"][f"!{name}"] = macro
+
+        return macro
 
     return _define
 
@@ -148,13 +149,17 @@ def _apply_auto_foreground(styles: StyleMap) -> bool:
     if foreground is None and background is not None:
         new = background.contrast.as_background(invert)
 
-        styles["background" if invert else "foreground"] = new
+        if invert:
+            styles["background"] = new
+        else:
+            styles["foreground"] = new
+
         return True
 
     return False
 
 
-def parse_color(color: str, background: bool) -> str:
+def parse_color(color: str, background: bool | int) -> str:
     """Parses a color tag."""
 
     background *= 10
@@ -198,7 +203,7 @@ def _apply_tag(tag: str, styles: StyleMap) -> None:
     """
 
     if tag == "/":
-        styles.update(**_get_style_map())
+        styles.update(**_get_style_map())  # type: ignore
         return
 
     is_unsetter = tag.startswith("/")
@@ -207,15 +212,20 @@ def _apply_tag(tag: str, styles: StyleMap) -> None:
     tag = tag.lstrip("/").lstrip("@")
 
     if tag in styles or tag in ["fg", "bg"]:
-        if tag in ["fg", "bg"]:
-            styles["foreground" if tag == "fg" else "background"] = None
+        if tag == "fg":
+            styles["foreground"] = None
+
+        elif tag == "bg":
+            styles["background"] = None
 
         else:
-            styles[tag] = not is_unsetter
+            styles[tag] = not is_unsetter  # type: ignore
 
         return
 
-    layer = "background" if is_background else "foreground"
+    layer: Literal["background", "foreground"] = (
+        "background" if is_background else "foreground"
+    )
 
     if RE_COLOR.match(tag):
         styles[layer] = Color.from_ansi(parse_color(tag, is_background))
@@ -233,7 +243,7 @@ def _apply_tag(tag: str, styles: StyleMap) -> None:
     raise ZmlNameError(tag)
 
 
-def _parse_macro(tag: str) -> tuple[MacroType, tuple[str, ...]]:
+def _parse_macro(tag: str) -> tuple[str, list[str]]:
     """Parses the given macro into its name and arguments."""
 
     args_start = tag.find("(")
@@ -269,7 +279,6 @@ def combine_spans(spans: tuple[Span, ...]) -> str:
     styles = _get_style_map()
 
     buff = ""
-    hyperlink = ""
     span: Span | None = None
 
     for span in spans:
@@ -285,11 +294,11 @@ def combine_spans(spans: tuple[Span, ...]) -> str:
             if key in ["text", "reset_after"]:
                 continue
 
-            if key == "hyperlink" and value not in ["", styles[key]]:
+            if key == "hyperlink" and value not in ["", styles[key]]:  # type: ignore
                 new[key] = value
                 continue
 
-            if styles[key] != value:
+            if styles[key] != value:  # type: ignore
                 new[key] = value
 
                 if not value and key != "hyperlink":
@@ -304,8 +313,8 @@ def combine_spans(spans: tuple[Span, ...]) -> str:
 
             buff = buff.rstrip(";") + "m"
 
-        buff += str(Span(text=span.text, reset_after=False, **new))
-        styles.update(**new)
+        buff += str(Span(**new, text=span.text, reset_after=False))  # type: ignore
+        styles.update(**new)  # type: ignore
 
     return buff
 
@@ -343,7 +352,9 @@ def zml_get_spans(text: str) -> tuple[Span, ...]:
     return (*spans,)
 
 
-def zml_pre_process(text: str, prefix: str = "", ctx: MarkupContext = None) -> str:
+def zml_pre_process(  # pylint: disable=too-many-locals, too-many-branches
+    text: str, prefix: str = "", ctx: MarkupContext | None = None
+) -> str:
     """Applies pre-processing to the given ZML text.
 
     Currently, this involves three steps:
@@ -380,7 +391,7 @@ def zml_pre_process(text: str, prefix: str = "", ctx: MarkupContext = None) -> s
 
     text = aliased
 
-    macros: dict[str, tuple[MacroType, tuple[str, ...]]] = {}
+    macros: dict[str, tuple[MacroType, list[str]]] = {}
     get_macro = ctx["macros"].get
 
     output = ""
@@ -410,7 +421,7 @@ def zml_pre_process(text: str, prefix: str = "", ctx: MarkupContext = None) -> s
                 if name not in macros:
                     raise ZmlSemanticsError(
                         name,
-                        f"Cannot unset a macro when that isn't set.",
+                        "Cannot unset a macro when that isn't set.",
                         expected_type="macro",
                     )
 
@@ -449,7 +460,7 @@ def zml_escape(text: str) -> str:
 def _escape(text: str, replacements: tuple[str, str]) -> str:
     """Escapes ZML-syntax characters with the given replacements."""
 
-    return text.replace("\[", replacements[0]).replace("\]", replacements[1])
+    return text.replace(r"\[", replacements[0]).replace(r"\]", replacements[1])
 
 
 def _unescape(text: str, replacements: tuple[str, str]) -> str:

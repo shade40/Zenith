@@ -177,7 +177,7 @@ class Palette:  # pylint: disable=too-many-instance-attributes
 
     def alias(
         self,
-        ctx: ContextMapping | None = None,
+        ctx: MarkupContext | None = None,
         mapping: dict[str, Color] | None = None,
         shade_count: int = 3,
         shade_step: float = 0.1,
@@ -211,7 +211,7 @@ class Palette:  # pylint: disable=too-many-instance-attributes
                     key = f"{name}+{i}"
                     colorhex = color.lighten(i, step_size=shade_step).hex
 
-                zml_alias(**{key: colorhex, f"@{key}": f"@{colorhex}"}, ctx=ctx)
+                zml_alias(**{key: colorhex, f"@{key}": f"@{colorhex}"}, ctx=ctx)  # type: ignore
 
     def render(self) -> str:
         """Returns markup that shows off the palette.
@@ -221,7 +221,7 @@ class Palette:  # pylint: disable=too-many-instance-attributes
 
         length = len(max(self.color_mapping.keys(), key=len)) + 4
 
-        lines = [[] for _ in range(7)]
+        lines: list[list[str]] = [[] for _ in range(7)]
 
         for name in self.color_mapping:
             for i, shade in enumerate([str(i) for i in range(-3, 4)]):

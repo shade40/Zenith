@@ -45,6 +45,7 @@ include = [
 
 [tool.hatch.envs.default]
 dependencies = [
+  "sh40-slate",
   "pytest",
   "pytest-cov",
 ]
@@ -76,7 +77,7 @@ strict = true
 
 [tool.pylint]
 fail-under = 9.9
-disable = "fixme"
+disable = "fixme,missing-module-docstring"
 good-names = ["i", "j", "k", "ex", "Run", "_", "x" ,"y", "fd"]
 
 [tool.isort]

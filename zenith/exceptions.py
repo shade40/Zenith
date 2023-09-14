@@ -34,7 +34,7 @@ class ZmlNameError(ZmlError):
 
     def __str__(self) -> str:
         return _generate_error_text(
-            "Unknown", self.expected_type, self.tag, self.context
+            "Unknown", self.expected_type, self.tag, self.context or ""
         )
 
 
@@ -48,5 +48,5 @@ class ZmlSemanticsError(ZmlError):
 
     def __str__(self) -> str:
         return _generate_error_text(
-            "Invalid", self.expected_type, self.tag, self.context
+            "Invalid", self.expected_type, self.tag, self.context or ""
         )

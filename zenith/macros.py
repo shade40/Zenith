@@ -3,7 +3,6 @@ from typing import Literal
 from functools import lru_cache
 
 from slate.color import Color
-from slate.color_info import NAMED_COLORS
 
 from .markup import zml_macro, parse_color
 
