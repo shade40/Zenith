@@ -71,7 +71,7 @@ LOCALIZATION = {
 def loc(key: str) -> str:
   """Returns a localized string for the given key."""
 
-  return LOCALIZATION[key]
+  return LOCALIZATION[key][LANG]
 
 zprint("This is localized: [!loc]welcome")
 ```
