@@ -1,10 +1,13 @@
 import sys
-from io import StringIO
+from typing import TextIO
 
 from .exceptions import *
 from .markup import *
 from .palette import *
 
+from . import exceptions
+from . import markup
+from . import palette
 from . import macros
 
 __all__ = [
@@ -20,7 +23,7 @@ def zprint(
     *items: str,
     sep: str = " ",
     end: str = "\x1b[0m\n",
-    file: StringIO = sys.stdout,
+    file: TextIO = sys.stdout,
     flush: bool = False
 ) -> None:
     """Mimicks built-in print, but parses each item as ZML."""
