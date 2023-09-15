@@ -145,13 +145,13 @@ class Palette:  # pylint: disable=too-many-instance-attributes
             "secondary": self.secondary,
             "tertiary": self.tertiary,
             "quaternary": self.quaternary,
-            "success": self.success,
-            "warning": self.warning,
-            "error": self.error,
             "surface1": self.surface1,
             "surface2": self.surface2,
             "surface3": self.surface3,
             "surface4": self.surface4,
+            "success": self.success,
+            "warning": self.warning,
+            "error": self.error,
         }
 
     @classmethod
@@ -219,21 +219,22 @@ class Palette:  # pylint: disable=too-many-instance-attributes
         Note that this is done according to the current `color_mapping`.
         """
 
-        length = len(max(self.color_mapping.keys(), key=len)) + 4
+        min_width = max(len(key) for key in self.color_mapping) + 2
+        lines = []
 
-        lines: list[list[str]] = [[] for _ in range(7)]
+        for key, color in self.color_mapping.items():
+            line = ""
 
-        for name in self.color_mapping:
-            for i, shade in enumerate([str(i) for i in range(-3, 4)]):
-                if shade == "0":
-                    display = name
-                    identifier = name
-                    shade = ""
+            for shade in range(-3, 4):
+                if shade < 0:
+                    line += f"[@{color.darken(-shade, 0.1).hex}]{' ' * 3}[/]"
+
+                elif shade == 0:
+                    line += f"[@{color.hex}]{key:^{min_width}}[/]"
 
                 else:
-                    display = ""
-                    identifier = f"{name}{('+' if int(shade) > 0 else '') + shade}"
+                    line += f"[@{color.lighten(shade, 0.1).hex}]{' ' * 3}[/]"
 
-                lines[i].append(f"[@{identifier}]{display:^{length}}")
+            lines.append(line)
 
-        return "\n".join(" ".join(line) for line in lines)
+        return "\n".join(lines)
