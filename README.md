@@ -101,7 +101,9 @@ palette.alias()
 zprint(palette.render())
 ```
 
-<img src="https://github.com/shade40/Zenith/blob/main/assets/palette.png?raw=true" alt="Palette example">
+<p align=center>
+    <img src="https://github.com/shade40/Zenith/blob/main/assets/palette.png?raw=true" alt="Palette example" width=300>
+</p>
 
 ![rule](https://singlecolorimage.com/get/4A7A9F/1600x3)
 
