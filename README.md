@@ -108,7 +108,7 @@ zprint(palette.render())
 ### Documentation
 
 Once the library gets to a settled state (near 1.0), documentation will be hosted both online and as a celx
-application. Until then peep the `examples` folder, or check out some of the widget references by using
+application. Until then peep the `experiments` folder, or check out some of the references by using
 `python3 -m pydoc <name>`.
 
 ![rule](https://singlecolorimage.com/get/4A7A9F/1600x3)
