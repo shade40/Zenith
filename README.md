@@ -93,7 +93,8 @@ zprint("[title]This is a cool title.[/title]")
 aliasing them for use in ZML.
 
 ```python
-from zenith import palette, zprint
+from slate import Color
+from zenith import Palette, zprint
 
 palette = Palette(Color.from_hex("#4A7A9F"))
 palette.alias()
