@@ -8,6 +8,7 @@ from typing import Callable, TypedDict, Literal
 from slate.span import UNSETTERS, Span
 from slate.color import Color
 from slate.color_info import NAMED_COLORS
+from slate.terminal import terminal
 
 from .exceptions import ZmlNameError, ZmlSemanticsError
 
@@ -350,6 +351,9 @@ def zml_get_spans(text: str) -> tuple[Span, ...]:
             styles["foreground"] = None
 
     return (*spans,)
+
+
+terminal.on_color_space_set += zml_get_spans.cache_clear
 
 
 def zml_pre_process(  # pylint: disable=too-many-locals, too-many-branches
