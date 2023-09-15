@@ -1,6 +1,7 @@
 import time
 import pytest
 
+from slate import terminal, ColorSpace, Color
 from zenith import zml, zml_alias, zml_macro, ZmlNameError, ZmlSemanticsError
 from zenith.markup import parse_color
 
@@ -139,3 +140,32 @@ def test_markup_parse_errors():
 
     with pytest.raises(ZmlSemanticsError):
         zml("Test[/!not-a-macro]")
+
+
+def test_markup_downgrade_colors():
+    Color.terminal = terminal
+
+    terminal.color_space = ColorSpace.TRUE_COLOR
+
+    assert (result := zml("[6]Test[/]")) == "\x1b[36mTest\x1b[0m", repr(result)
+    assert (result := zml("[141]Test[/]")) == "\x1b[38;5;141mTest\x1b[0m", repr(result)
+    assert (
+        result := zml("[@#212121]Test[/]")
+    ) == "\x1b[38;2;245;245;245;48;2;33;33;33mTest\x1b[0m", repr(result)
+
+    terminal.color_space = ColorSpace.EIGHT_BIT
+    assert (result := zml("[3]Test[/]")) == "\x1b[33mTest\x1b[0m", repr(result)
+    assert (result := zml("[138]Test[/]")) == "\x1b[38;5;138mTest\x1b[0m", repr(result)
+
+    assert (
+        result := zml("[@#212121]Test[/]")
+    ) == "\x1b[38;5;231;48;5;59mTest\x1b[0m", repr(result)
+
+    assert (result := zml("[123;34;56]Test[/]")) == "\x1b[38;5;95mTest\x1b[0m", repr(
+        result
+    )
+
+    terminal.color_space = ColorSpace.STANDARD
+    assert (result := zml("[@2]Test[/]")) == "\x1b[30;42mTest\x1b[0m", repr(result)
+    assert (result := zml("[#456723]Test[/]")) == "\x1b[90mTest\x1b[0m", repr(result)
+    assert (result := zml("[45]Test[/]")) == "\x1b[96mTest\x1b[0m", repr(result)
