@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, Tuple
 
 from slate.color import Color
 
@@ -17,7 +17,7 @@ __all__ = [
     "Palette",
 ]
 
-PalettingFunction = Callable[[Color], tuple[Color, Color, Color, Color]]
+PalettingFunction = Callable[[Color], Tuple[Color, Color, Color, Color]]
 
 
 def triadic(base: Color) -> tuple[Color, Color, Color, Color]:
