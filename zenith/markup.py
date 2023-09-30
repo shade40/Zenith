@@ -190,9 +190,14 @@ def parse_color(color: str, background: bool | int) -> str:
     if color.startswith("#"):
         color = color.lstrip("#")
 
+        alpha = color[6:]
+
         color = ";".join(
-            str(int(part, base=16)) for part in [color[:2], color[2:4], color[4:]]
+            str(int(part, base=16)) for part in [color[:2], color[2:4], color[4:6]]
         )
+
+        if alpha != "":
+            color += f";{int(alpha, base=16) / 255}"
 
     return f"{38 + background};2;{color}"
 
