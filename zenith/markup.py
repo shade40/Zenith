@@ -361,7 +361,7 @@ def zml_get_spans(text: str) -> tuple[Span, ...]:
 terminal.on_color_space_set += zml_get_spans.cache_clear
 
 
-def zml_pre_process(  # pylint: disable=too-many-locals, too-many-branches
+def zml_pre_process(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
     text: str, prefix: str = "", ctx: MarkupContext | None = None
 ) -> str:
     """Applies pre-processing to the given ZML text.
@@ -376,6 +376,7 @@ def zml_pre_process(  # pylint: disable=too-many-locals, too-many-branches
     ctx = ctx or GLOBAL_CONTEXT
 
     aliased = ""
+
     for mtch in RE_MARKUP.finditer(text):
         tags, plain = mtch.groups()
 
@@ -386,6 +387,10 @@ def zml_pre_process(  # pylint: disable=too-many-locals, too-many-branches
             aliased += "["
 
             for tag in tags.split():
+                if "*" in tag:
+                    aliased += f"!alpha({','.join(tag.split('*'))}) "
+                    continue
+
                 prefixed = _apply_prefix(tag, prefix)
 
                 if prefixed in ctx["aliases"]:
