@@ -25,7 +25,7 @@ __all__ = [
     "GLOBAL_CONTEXT",
 ]
 
-MacroType = Callable[[str], str]
+MacroType = Callable[..., str]
 
 FULL_RESET = Span("FULL_RESET")
 """A sentinel value to be used for signifying a full style reset (CSI 0)."""

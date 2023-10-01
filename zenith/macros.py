@@ -1,31 +1,54 @@
 from time import strftime
-from typing import Literal
+from typing import Literal, Callable
 from functools import lru_cache
 
 from slate.color import Color
 
-from .markup import zml_macro, parse_color
+from .markup import zml_macro, parse_color, zml_pre_process
+
+
+def transform(text: str, transformer: Callable[[int, str], str]) -> str:
+    """Applies the given transformation for all non-style chars, returns the result."""
+
+    i = 0
+    output = ""
+    in_group = False
+
+    for char in text:
+        if char in "[]":
+            output += char
+            in_group = char == "["
+            continue
+
+        if in_group:
+            output += char
+            continue
+
+        output += transformer(i, char)
+        i += 1
+
+    return output
 
 
 @zml_macro
 def upper(text: str) -> str:
     """Returns `text.upper()`."""
 
-    return text.upper()
+    return transform(text, lambda _, text: text.upper())
 
 
 @zml_macro
 def lower(text: str) -> str:
     """Returns `text.lower()`."""
 
-    return text.lower()
+    return transform(text, lambda _, text: text.lower())
 
 
 @zml_macro
 def title(text: str) -> str:
     """Returns `text.title()`."""
 
-    return text.title()
+    return transform(text, lambda _, text: text.title())
 
 
 @zml_macro
@@ -48,6 +71,7 @@ def gradient(
     """
 
     is_background = origin.startswith("@")
+    origin = zml_pre_process(f"[{origin}]")[1:-1]
     color = Color.from_ansi(parse_color(origin.lstrip("@"), is_background))
 
     if method == "shade":
@@ -71,17 +95,30 @@ def gradient(
     else:
         raise ValueError(r"Unknown gradient method {method!r}.")
 
-    output = ""
-    current_block = 0
     blocksize = max(round(len(text) / 5), 1)
 
-    for i, char in enumerate(text):
-        if i % blocksize == 0 and current_block < len(steps):
-            color = steps[current_block]
-            output += f"[{'@' if color.is_background else ' '}{color.hex}]"
+    def _transform(i: int, char: str) -> str:
+        if len(steps) > 0 and i % blocksize == 0:
+            color = steps.pop(0)
 
-            current_block += 1
+            return f"[{'@' * color.is_background}{color.hex}]{char}"
 
-        output += char
+        return char
 
-    return output + ("[/bg]" if is_background else "[/fg]")
+    return transform(text, _transform) + f"[{'/bg' if is_background else '/fg'}]"
+
+
+@zml_macro
+def alpha(text: str, color: str, opacity: str) -> str:
+    """Converts the given color to some opacity."""
+
+    if opacity == "1.0":
+        return zml_pre_process(f"[{color}]{text}")
+
+    color = zml_pre_process(f"[{color}]")[1:-1]
+    background = color.startswith("@")
+
+    color = ";".join(parse_color(color.lstrip("@"), background).split(";")[2:])
+    color += f";{opacity}"
+
+    return f"[{'@' * background}{color}]{text}"
