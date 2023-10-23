@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, Tuple
 
-from slate.color import Color
+from slate.color import Color, color
 
 from .markup import MarkupContext, zml_alias
 
@@ -78,140 +78,137 @@ DEFAULT_WARNING = Color.from_hex("ebe267")
 SEMANTIC_BLEND_ALPHA = 0.3
 
 
-@dataclass
-class Palette:  # pylint: disable=too-many-instance-attributes
-    """A palette containing 4 'main' colors and surface colors and 3 semantics ones.
-
-    The primary color is the main color of an interface. Secondary, tertiary and
-    quaternary colors are calculated based on the given strategy.
-
-    Success, warning & error are colors representing the given semantic meanings; they
-    are computed by tinting some defaults with the primary color.
-
-    Additionally, there are surface colors defined for all 4 of the main ones; these are
-    created by tinting a default surface color with the primary, secondary, tertiary and
-    quaternary color respectively.
-    """
+class Palette:
+    namespace: str = ""
 
     primary: Color
-    secondary: Color = field(init=False)
-    tertiary: Color = field(init=False)
-    quaternary: Color = field(init=False)
+    secondary: Color
+    tertiary: Color
+    quaternay: Color
 
-    success: Color = field(init=False)
-    warning: Color = field(init=False)
-    error: Color = field(init=False)
+    success: Color
+    warning: Color
+    error: Color
 
-    surface1: Color = field(init=False)
-    surface2: Color = field(init=False)
-    surface3: Color = field(init=False)
-    surface4: Color = field(init=False)
+    surface1: Color
+    surface2: Color
+    surface3: Color
+    surface4: Color
 
-    surface_blend_base: Color = DEFAULT_SURFACE
-    success_blend_base: Color = DEFAULT_SUCCESS
-    warning_blend_base: Color = DEFAULT_WARNING
-    error_blend_base: Color = DEFAULT_ERROR
+    def __init__(
+        self,
+        primary: Color | str,
+        *,
+        namespace: str = "",
+        strategy: PalettingFunction = triadic,
+        shade_count: int = 3,
+        shade_step: float = 0.1,
+        secondary: Color | None = None,
+        tertiary: Color | None = None,
+        quaternary: Color | None = None,
+        success: Color | None = None,
+        warning: Color | None = None,
+        error: Color | None = None,
+        surface_base: Color = DEFAULT_SURFACE,
+        success_base: Color = DEFAULT_SUCCESS,
+        warning_base: Color = DEFAULT_WARNING,
+        error_base: Color = DEFAULT_ERROR,
+    ) -> None:
+        self._ctx = None
 
-    strategy: PalettingFunction = triadic
+        if isinstance(primary, str):
+            primary = color(primary)
 
-    def __post_init__(self) -> None:
-        primary = self.primary
+        self.primary = primary
 
-        _, self.secondary, self.tertiary, self.quaternary = self.strategy(primary)
+        _, g_secondary, g_tertiary, g_quaternary = strategy(primary)
 
-        self.success = self.success_blend_base.blend(primary, SEMANTIC_BLEND_ALPHA)
-        self.warning = self.warning_blend_base.blend(primary, SEMANTIC_BLEND_ALPHA)
-        self.error = self.error_blend_base.blend(primary, SEMANTIC_BLEND_ALPHA)
+        self.secondary = secondary or g_secondary
+        self.tertiary = tertiary or g_tertiary
+        self.quaternary = quaternary or g_quaternary
 
-        self.surface1 = self.surface_blend_base.blend(
-            self.primary,
-            alpha=SURFACE_BLEND_ALPHA,
-        )
-        self.surface2 = self.surface_blend_base.blend(
-            self.secondary,
-            alpha=SURFACE_BLEND_ALPHA,
-        )
-        self.surface3 = self.surface_blend_base.blend(
-            self.tertiary,
-            alpha=SURFACE_BLEND_ALPHA,
-        )
-        self.surface4 = self.surface_blend_base.blend(
-            self.quaternary,
-            alpha=SURFACE_BLEND_ALPHA,
-        )
+        self.success = success_base.blend(primary, SEMANTIC_BLEND_ALPHA)
+        self.warning = warning_base.blend(primary, SEMANTIC_BLEND_ALPHA)
+        self.error = error_base.blend(primary, SEMANTIC_BLEND_ALPHA)
 
-        self.color_mapping = {
+        self.surface1 = surface_base.blend(self.primary, alpha=SURFACE_BLEND_ALPHA)
+        self.surface2 = surface_base.blend(self.secondary, alpha=SURFACE_BLEND_ALPHA)
+        self.surface3 = surface_base.blend(self.tertiary, alpha=SURFACE_BLEND_ALPHA)
+        self.surface4 = surface_base.blend(self.quaternary, alpha=SURFACE_BLEND_ALPHA)
+
+        self._keys = {
             "primary": self.primary,
             "secondary": self.secondary,
             "tertiary": self.tertiary,
             "quaternary": self.quaternary,
+            "success": self.success,
+            "error": self.error,
+            "warning": self.warning,
             "surface1": self.surface1,
             "surface2": self.surface2,
             "surface3": self.surface3,
             "surface4": self.surface4,
-            "success": self.success,
-            "warning": self.warning,
-            "error": self.error,
         }
 
-    @classmethod
-    def from_hex(cls, primary: str, strategy: PalettingFunction = triadic) -> Palette:
-        """Generates a palette from a CSS-style HEX color string."""
+        self._mapping = {}
 
-        return Palette(Color.from_hex(primary), strategy=strategy)
-
-    @property
-    def color_mapping(self) -> dict[str, Color]:
-        """Returns a mapping of color names to their values.
-
-        Primarily used for aliasing.
-        """
-
-        return self._color_mapping
-
-    @color_mapping.setter
-    def color_mapping(self, new: dict[str, Color]) -> None:
-        """Sets the color mapping."""
-
-        self._color_mapping = new
-
-    def alias(
-        self,
-        ctx: MarkupContext | None = None,
-        mapping: dict[str, Color] | None = None,
-        shade_count: int = 3,
-        shade_step: float = 0.1,
-    ) -> None:
-        """Sets up aliases for this palette's colors.
-
-        Args:
-            ctx: The markup context to alias into. Defaults to the global context.
-            mapping: The name->color mapping used to set up the aliases. Defaults to
-                `self.color_mapping`.
-            shade_count: The number of shades that should be included on both the
-                positive and negative side. These are aliased as `{color}{+/-step}`,
-                like `primary+2` or `surface1-2`.
-            shade_step: The step_size passed to `Color.lighten` or `Color.darken`,
-                controls the distance between shades.
-        """
-
-        mapping = mapping or self.color_mapping
-
-        for name, color in mapping.items():
+        for name, col in self._keys.items():
             for i in range(-shade_count, shade_count + 1):
                 if i == 0:
                     key = name
-                    colorhex = color.hex
+                    colorhex = col.hex
 
                 elif i < 0:
                     key = f"{name}{i}"
-                    colorhex = color.darken(-i, step_size=shade_step).hex
+                    colorhex = col.darken(-i, step_size=shade_step).hex
 
                 else:
                     key = f"{name}+{i}"
-                    colorhex = color.lighten(i, step_size=shade_step).hex
+                    colorhex = col.lighten(i, step_size=shade_step).hex
 
-                zml_alias(**{key: colorhex, f"@{key}": f"@{colorhex}"}, ctx=ctx)  # type: ignore
+                self._mapping[f"{namespace}{key}"] = colorhex
+                self._mapping[f"@{namespace}{key}"] = f"@{colorhex}"
+
+        self._shade_count = shade_count
+
+    def alias(
+        self, ctx: MarkupContext | None, ignore_already_aliased: bool = False
+    ) -> None:
+        """Sets up aliases for the given context.
+
+        It also stores the context as the 'current' context, so it can unalias it later.
+
+        Args:
+            ignore_already_aliased: By default, an error is raised if there is already a
+                'current' aliased context for this palette. If set, this error is not
+                raised.
+        """
+        if not ignore_already_aliased and self._ctx is not None:
+            raise ValueError(
+                "either call unalias before trying to re-alias,"
+                + " or set `ignore_already_aliased`"
+            )
+
+        self._ctx = ctx
+
+        zml_alias(**self._mapping, ctx=ctx)
+
+    def unalias(self) -> None:
+        """Deletes aliases from the current context.
+
+        It will silently exit if the palette hasn't yet been aliased.
+        """
+
+        if self._ctx is None:
+            return
+
+        aliases = self._ctx["aliases"]
+
+        for key in self._mapping.keys():
+            del aliases[key]
+            del aliases[f"/{key}"]
+
+        self._ctx = None
 
     def render(self) -> str:
         """Returns markup that shows off the palette.
@@ -219,22 +216,24 @@ class Palette:  # pylint: disable=too-many-instance-attributes
         Note that this is done according to the current `color_mapping`.
         """
 
-        min_width = max(len(key) for key in self.color_mapping) + 2
+        min_width = max(len(key) for key in self._mapping) + 2
+        offset_len = len(str(self._shade_count)) + 1
         lines = []
+        line = ""
 
-        for key, color in self.color_mapping.items():
-            line = ""
+        for key, color in self._mapping.items():
+            if not key.startswith("@"):
+                continue
 
-            for shade in range(-3, 4):
-                if shade < 0:
-                    line += f"[@{color.darken(-shade, 0.1).hex}]{' ' * 3}[/]"
+            sign, offset = key[-offset_len:]
 
-                elif shade == 0:
-                    line += f"[@{color.hex}]{key:^{min_width}}[/]"
+            if not (sign in ("-", "+") and offset.isdigit()):
+                line += f"[{color}]{key:^{min_width}}[/]"
 
-                else:
-                    line += f"[@{color.lighten(shade, 0.1).hex}]{' ' * 3}[/]"
+            if key[-offset_len:] == str(-self._shade_count):
+                lines.append(line)
+                line = ""
 
-            lines.append(line)
+            line += f"[{color}]{' ' * 3}[/]"
 
         return "\n".join(lines)
