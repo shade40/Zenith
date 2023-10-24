@@ -1,10 +1,10 @@
-from time import strftime
-from typing import Literal, Callable
 from functools import lru_cache
+from time import strftime
+from typing import Callable, Literal
 
 from slate.color import Color
 
-from .markup import zml_macro, parse_color, zml_pre_process
+from .markup import parse_color, zml_macro, zml_pre_process
 
 
 def transform(text: str, transformer: Callable[[int, str], str]) -> str:

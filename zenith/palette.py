@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Callable, Tuple
 
 from slate.color import Color, color
 
-from .markup import MarkupContext, zml_alias, GLOBAL_CONTEXT
+from .markup import GLOBAL_CONTEXT, MarkupContext, zml_alias
 
 __all__ = [
     "triadic",
@@ -81,7 +80,26 @@ SEMANTIC_BLEND_ALPHA = 0.3
 
 
 class Palette:
-    def __init__(
+    """An object to represent a color palette.
+
+    This object has 4 'main' colors, 1 'panel' color for each and 3
+    'semantic' colors, as well as a 'text' color:
+
+    - Main colors are meant to be used to higlight objects on the screen. A
+        good rule of thumb is to use the 60-30-10 rule, which means using your
+        primary color as 60% of any given screen, your secondary color as 30%
+        and finally your tertiary color as 10%.
+
+    - Panel colors serve as the backdrop of objects. Generally you want to use
+        matching main and panel colors, so with primary mapping to panel1,
+        secondary to panel2 and so on.
+
+    - Semantic colors are meant to catch your eyes and immediately convey a
+        message. We use red to display errors, yellow to display warnings and
+        green to display successful actions. Use sparingly!
+    """
+
+    def __init__(  # pylint: disable=too-many-locals
         self,
         primary: Color | str | int,
         *,
@@ -105,8 +123,8 @@ class Palette:
         warning_base: Color = DEFAULT_WARNING,
         error_base: Color = DEFAULT_ERROR,
     ) -> None:
-        self._ctx = None
-        self._mapping = {}
+        self._ctx: MarkupContext | None = None
+        self._mapping: dict[str, str] = {}
 
         self._shade_count = shade_count
         self._shade_step = shade_step
@@ -116,8 +134,6 @@ class Palette:
             primary = color(str(primary))
 
         _, g_secondary, g_tertiary, g_quaternary = strategy(primary)
-
-        text = text
 
         secondary = secondary or g_secondary
         tertiary = tertiary or g_tertiary
@@ -151,11 +167,17 @@ class Palette:
 
     def __getattr__(self, attr: str) -> Color:
         if attr not in self._mapping:
-            return AttributeError
+            raise AttributeError
 
         return Color.from_hex(self._mapping[attr])
 
     def update(self, **mapping: Color) -> None:
+        """Mutates the palette by some mapping.
+
+        This regenerates each shade and color combination, so be sure to
+        call `alias` afterwards.
+        """
+
         shade_count = self._shade_count
         shade_step = self._shade_step
         namespace = self._namespace
@@ -189,6 +211,7 @@ class Palette:
                 'current' aliased context for this palette. If set, this error is not
                 raised.
         """
+
         if not ignore_already_aliased and self._ctx is not None:
             raise ValueError(
                 "either call unalias before trying to re-alias,"
@@ -196,7 +219,7 @@ class Palette:
             )
 
         self._ctx = ctx or GLOBAL_CONTEXT
-        zml_alias(**self._mapping, ctx=ctx)
+        zml_alias(**self._mapping, ctx=ctx)  # type: ignore
 
     def unalias(self) -> None:
         """Deletes aliases from the current context.
@@ -209,7 +232,7 @@ class Palette:
 
         aliases = self._ctx["aliases"]
 
-        for key in self._mapping.keys():
+        for key in self._mapping:
             del aliases[key]
             del aliases[f"/{key}"]
 
@@ -226,19 +249,19 @@ class Palette:
         lines = []
         line = ""
 
-        for key, color in self._mapping.items():
+        for key, col in self._mapping.items():
             if not key.startswith("@"):
                 continue
 
-            sign, offset = key[-offset_len:]
+            sign, offset = [*key[-offset_len:]]
 
             if not (sign in ("-", "+") and offset.isdigit()):
-                line += f"[{color}]{key:^{min_width}}[/]"
+                line += f"[{col}]{key:^{min_width}}[/]"
 
             if key[-offset_len:] == str(-self._shade_count):
                 lines.append(line)
                 line = ""
 
-            line += f"[{color}]{' ' * 3}[/]"
+            line += f"[{col}]{' ' * 3}[/]"
 
         return "\n".join(lines)

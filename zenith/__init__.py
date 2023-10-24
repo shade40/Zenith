@@ -1,14 +1,10 @@
 import sys
 from typing import TextIO
 
+from . import exceptions, macros, markup, palette
 from .exceptions import *
 from .markup import *
 from .palette import *
-
-from . import exceptions
-from . import markup
-from . import palette
-from . import macros
 
 __all__ = [
     *exceptions.__all__,

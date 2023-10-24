@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import re
-
 from functools import lru_cache
-from typing import Callable, TypedDict, Literal
+from typing import Callable, Literal, TypedDict
 
-from slate.span import UNSETTERS, Span
 from slate.color import Color
 from slate.color_info import NAMED_COLORS
+from slate.span import UNSETTERS, Span
 from slate.terminal import terminal
 
 from .exceptions import ZmlNameError, ZmlSemanticsError
