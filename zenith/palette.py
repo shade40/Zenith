@@ -83,7 +83,7 @@ SEMANTIC_BLEND_ALPHA = 0.3
 class Palette:
     def __init__(
         self,
-        primary: Color | str,
+        primary: Color | str | int,
         *,
         namespace: str = "",
         strategy: PalettingFunction = triadic,
@@ -96,53 +96,71 @@ class Palette:
         success: Color | None = None,
         warning: Color | None = None,
         error: Color | None = None,
+        panel1: Color | None = None,
+        panel2: Color | None = None,
+        panel3: Color | None = None,
+        panel4: Color | None = None,
         panel_base: Color = DEFAULT_PANEL,
         success_base: Color = DEFAULT_SUCCESS,
         warning_base: Color = DEFAULT_WARNING,
         error_base: Color = DEFAULT_ERROR,
     ) -> None:
         self._ctx = None
+        self._mapping = {}
 
-        if isinstance(primary, str):
-            primary = color(primary)
+        self._shade_count = shade_count
+        self._shade_step = shade_step
+        self._namespace = namespace
 
-        self.primary = primary
+        if not isinstance(primary, Color):
+            primary = color(str(primary))
 
         _, g_secondary, g_tertiary, g_quaternary = strategy(primary)
 
-        self.text = text
+        text = text
 
-        self.secondary = secondary or g_secondary
-        self.tertiary = tertiary or g_tertiary
-        self.quaternary = quaternary or g_quaternary
+        secondary = secondary or g_secondary
+        tertiary = tertiary or g_tertiary
+        quaternary = quaternary or g_quaternary
 
-        self.success = success_base.blend(primary, SEMANTIC_BLEND_ALPHA)
-        self.warning = warning_base.blend(primary, SEMANTIC_BLEND_ALPHA)
-        self.error = error_base.blend(primary, SEMANTIC_BLEND_ALPHA)
+        success = success or success_base.blend(primary, SEMANTIC_BLEND_ALPHA)
+        warning = warning or warning_base.blend(primary, SEMANTIC_BLEND_ALPHA)
+        error = error or error_base.blend(primary, SEMANTIC_BLEND_ALPHA)
 
-        self.panel1 = panel_base.blend(self.primary, alpha=PANEL_BLEND_ALPHA)
-        self.panel2 = panel_base.blend(self.secondary, alpha=PANEL_BLEND_ALPHA)
-        self.panel3 = panel_base.blend(self.tertiary, alpha=PANEL_BLEND_ALPHA)
-        self.panel4 = panel_base.blend(self.quaternary, alpha=PANEL_BLEND_ALPHA)
+        panel1 = panel1 or panel_base.blend(primary, alpha=PANEL_BLEND_ALPHA)
+        panel2 = panel2 or panel_base.blend(secondary, alpha=PANEL_BLEND_ALPHA)
+        panel3 = panel3 or panel_base.blend(tertiary, alpha=PANEL_BLEND_ALPHA)
+        panel4 = panel4 or panel_base.blend(quaternary, alpha=PANEL_BLEND_ALPHA)
 
         self._keys = {
-            "primary": self.primary,
-            "text": self.text,
-            "secondary": self.secondary,
-            "tertiary": self.tertiary,
-            "quaternary": self.quaternary,
-            "success": self.success,
-            "error": self.error,
-            "warning": self.warning,
-            "panel1": self.panel1,
-            "panel2": self.panel2,
-            "panel3": self.panel3,
-            "panel4": self.panel4,
+            "text": text,
+            "primary": primary,
+            "secondary": secondary,
+            "tertiary": tertiary,
+            "quaternary": quaternary,
+            "success": success,
+            "error": error,
+            "warning": warning,
+            "panel1": panel1,
+            "panel2": panel2,
+            "panel3": panel3,
+            "panel4": panel4,
         }
 
-        self._mapping = {}
+        self.update(**self._keys)
 
-        for name, col in self._keys.items():
+    def __getattr__(self, attr: str) -> Color:
+        if attr not in self._mapping:
+            return AttributeError
+
+        return Color.from_hex(self._mapping[attr])
+
+    def update(self, **mapping: Color) -> None:
+        shade_count = self._shade_count
+        shade_step = self._shade_step
+        namespace = self._namespace
+
+        for name, col in mapping.items():
             for i in range(-shade_count, shade_count + 1):
                 if i == 0:
                     key = name
@@ -158,8 +176,6 @@ class Palette:
 
                 self._mapping[f"{namespace}{key}"] = colorhex
                 self._mapping[f"@{namespace}{key}"] = f"@{colorhex}"
-
-        self._shade_count = shade_count
 
     def alias(
         self, ctx: MarkupContext | None = None, ignore_already_aliased: bool = False

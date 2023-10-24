@@ -37,7 +37,7 @@ def test_palette_alias():
     pal.alias(ctx=ctx)
 
     assert ctx["aliases"]["error-2"] == pal.error.darken(2).hex
-    assert ctx["aliases"]["surface3"] == pal.surface3.hex
+    assert ctx["aliases"]["panel3"] == pal.panel3.hex
     assert ctx["aliases"]["success+3"] == pal.success.lighten(3).hex
 
     assert "success+4" not in ctx["aliases"]
