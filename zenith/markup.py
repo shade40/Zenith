@@ -8,6 +8,7 @@ from slate.color import Color
 from slate.color_info import NAMED_COLORS
 from slate.span import UNSETTERS, Span
 from slate.terminal import terminal
+from slate.core import ColorSpace
 
 from .exceptions import ZmlNameError, ZmlSemanticsError
 
@@ -357,7 +358,13 @@ def zml_get_spans(text: str) -> tuple[Span, ...]:
     return (*spans,)
 
 
-terminal.on_color_space_set += zml_get_spans.cache_clear
+def _on_color_space_set(_: ColorSpace | None) -> bool:
+    zml_get_spans.cache_clear()
+
+    return True
+
+
+terminal.on_color_space_set += _on_color_space_set
 
 
 def zml_pre_process(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
