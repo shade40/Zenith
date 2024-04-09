@@ -8,12 +8,13 @@ from slate.color import Color
 from slate.color_info import NAMED_COLORS
 from slate.span import UNSETTERS, Span
 from slate.terminal import terminal
-from slate.core import ColorSpace
+from slate.core import ColorSpace, width as text_width
 
 from .exceptions import ZmlNameError, ZmlSemanticsError
 
 __all__ = [
     "zml",
+    "zml_wrap",
     "zml_alias",
     "zml_escape",
     "zml_macro",
@@ -22,6 +23,7 @@ __all__ = [
     "zml_pre_process",
     "zml_context",
     "MarkupContext",
+    "MacroType",
     "GLOBAL_CONTEXT",
 ]
 
@@ -41,6 +43,47 @@ class MarkupContext(TypedDict):
 
     aliases: dict[str, str]
     macros: dict[str, MacroType]
+
+
+# TODO: Maybe this could also implement all word boundaries except for just " "?
+def zml_wrap(text: str, width: int) -> list[str]:
+    """Wraps text by spaces or newlines for each line to fit in the given width.
+
+    This method properly treats markup tags as non-displayed.
+    """
+
+    lines = []
+    in_tag = False
+
+    for line in text.splitlines():
+        current = ""
+        length = 0
+
+        for char in line:
+            if char == "[":
+                in_tag = True
+
+            elif char == "]":
+                in_tag = False
+
+            current += char
+
+            if in_tag:
+                continue
+
+            length += 1
+
+            if length == width:
+                *current, rest = current.split(" ")
+                lines.append(" ".join(current))
+
+                current = rest
+                length = text_width(rest)
+
+        if current != "":
+            lines.append(current)
+
+    return lines
 
 
 def zml_context() -> MarkupContext:
