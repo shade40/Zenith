@@ -391,8 +391,10 @@ def zml_get_spans(text: str) -> tuple[Span, ...]:
 
             _apply_tag(tag, styles)
 
-        auto_fg = _apply_auto_foreground(styles)
+        if plain == "":
+            continue
 
+        auto_fg = _apply_auto_foreground(styles)
         spans.append(Span(plain, **styles))
 
         if auto_fg:
