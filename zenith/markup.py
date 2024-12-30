@@ -20,6 +20,7 @@ __all__ = [
     "zml_macro",
     "combine_spans",
     "zml_get_spans",
+    "zml_expand_aliases",
     "zml_pre_process",
     "zml_context",
     "MarkupContext",
@@ -289,7 +290,12 @@ def _apply_tag(tag: str, styles: StyleMap) -> None:
         styles["hyperlink"] = "" if is_unsetter else tag[1:]
         return
 
-    raise ZmlNameError(tag)
+    raise ZmlNameError(tag,
+        context=(
+            "make sure to call zml_expand_aliases when returning user-provided"
+            + " tags from macros."
+        )
+    )
 
 
 def _parse_macro(tag: str) -> tuple[str, list[str]]:
@@ -411,18 +417,10 @@ def _on_color_space_set(_: ColorSpace | None) -> bool:
 
 terminal.on_color_space_set += _on_color_space_set
 
-
-def zml_pre_process(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+def zml_expand_aliases(
     text: str, prefix: str = "", ctx: MarkupContext | None = None
 ) -> str:
-    """Applies pre-processing to the given ZML text.
-
-    Currently, this involves three steps:
-
-    - Substitute all aliases with their real values
-    - Evaluate macros on the plain text
-    - Eliminate groups that don't contain a plain part
-    """
+    """Expands all aliases found in the given ZML text."""
 
     ctx = ctx or GLOBAL_CONTEXT
 
@@ -454,7 +452,24 @@ def zml_pre_process(  # pylint: disable=too-many-locals, too-many-branches, too-
         if plain is not None:
             aliased += plain
 
-    text = aliased
+    return aliased
+
+
+def zml_pre_process(  # pylint: disable=too-many-locals, too-many-branches, too-many-statements
+    text: str, prefix: str = "", ctx: MarkupContext | None = None
+) -> str:
+    """Applies pre-processing to the given ZML text.
+
+    Currently, this involves three steps:
+
+    - Substitute all aliases with their real values
+    - Evaluate macros on the plain text
+    - Eliminate groups that don't contain a plain part
+    """
+
+    text = zml_expand_aliases(text, prefix, ctx)
+
+    ctx = ctx or GLOBAL_CONTEXT
 
     macros: dict[str, tuple[MacroType, list[str]]] = {}
     get_macro = ctx["macros"].get
