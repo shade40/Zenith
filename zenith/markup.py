@@ -17,6 +17,8 @@ __all__ = [
     "zml_wrap",
     "zml_alias",
     "zml_escape",
+    "preserve_escapes",
+    "restore_preserved_escapes",
     "zml_macro",
     "combine_spans",
     "zml_get_spans",
@@ -36,6 +38,11 @@ FULL_RESET = Span("FULL_RESET")
 RE_MARKUP = re.compile(r"(?:\[([^\[\]]+)\])?([^\]\[]+)?")
 RE_COLOR = re.compile(
     r"(?:^@?([\d]{1,3})$)|(?:@?#?([0-9a-fA-F]{6}))|(@?\d{1,3};\d{1,3};\d{1,3})"
+)
+
+DEFAULT_PRESERVERS = (
+    "\0{%\0",
+    "\0%}\0",
 )
 
 
@@ -375,7 +382,7 @@ def combine_spans(spans: tuple[Span, ...]) -> str:
 
 
 @lru_cache(512)
-def zml_get_spans(text: str) -> tuple[Span, ...]:
+def zml_get_spans(text: str, keep_preservers: bool = False) -> tuple[Span, ...]:
     """Gets all spans from the given ZML text."""
 
     styles: StyleMap = _get_style_map()
@@ -401,6 +408,10 @@ def zml_get_spans(text: str) -> tuple[Span, ...]:
             continue
 
         auto_fg = _apply_auto_foreground(styles)
+
+        if not keep_preservers:
+            plain = restore_preserved_escapes(plain)
+
         spans.append(Span(plain, **styles))
 
         if auto_fg:
@@ -537,32 +548,31 @@ def zml_escape(text: str) -> str:
     return text.replace("[", r"\[").replace("]", r"\]")
 
 
-def _escape(text: str, replacements: tuple[str, str]) -> str:
+def preserve_escapes(text: str, preservers: tuple[str, str] = DEFAULT_PRESERVERS) -> str:
     """Escapes ZML-syntax characters with the given replacements."""
 
-    return text.replace(r"\[", replacements[0]).replace(r"\]", replacements[1])
+    return text.replace(r"\[", preservers[0]).replace(r"\]", preservers[1])
 
 
-def _unescape(text: str, replacements: tuple[str, str]) -> str:
-    """Escapes ZML-syntax characters with the given replacements."""
+def restore_preserved_escapes(text: str, preservers: tuple[str, str] = DEFAULT_PRESERVERS) -> str:
+    """Escapes ZML-syntax characters with the given preservers."""
 
-    return text.replace(replacements[0], "[").replace(replacements[1], "]")
+    return text.replace(preservers[0], "[").replace(preservers[1], "]")
 
 
 def zml(
     markup: str,
     prefix: str = "",
     ctx: MarkupContext | None = None,
-    escape_replacements: tuple[str, str] = ("{{{{", "}}}}"),
 ) -> str:
     """Parses ZML markup into optimized ANSI text.
 
     DOCUMENT THIS
     """
 
-    markup = _escape(markup, escape_replacements)
+    markup = preserve_escapes(markup)
 
     # TODO: This step should be cached/done smarter. It takes ages!
     markup = zml_pre_process(markup, prefix=prefix, ctx=ctx)
 
-    return _unescape(combine_spans(zml_get_spans(markup)), escape_replacements)
+    return restore_preserved_escapes(combine_spans(zml_get_spans(markup)))
