@@ -297,11 +297,12 @@ def _apply_tag(tag: str, styles: StyleMap) -> None:
         styles["hyperlink"] = "" if is_unsetter else tag[1:]
         return
 
-    raise ZmlNameError(tag,
+    raise ZmlNameError(
+        tag,
         context=(
             "make sure to call zml_expand_aliases when returning user-provided"
             + " tags from macros."
-        )
+        ),
     )
 
 
@@ -428,6 +429,7 @@ def _on_color_space_set(_: ColorSpace | None) -> bool:
 
 terminal.on_color_space_set += _on_color_space_set
 
+
 def zml_expand_aliases(
     text: str, prefix: str = "", ctx: MarkupContext | None = None
 ) -> str:
@@ -548,13 +550,17 @@ def zml_escape(text: str) -> str:
     return text.replace("[", r"\[").replace("]", r"\]")
 
 
-def preserve_escapes(text: str, preservers: tuple[str, str] = DEFAULT_PRESERVERS) -> str:
+def preserve_escapes(
+    text: str, preservers: tuple[str, str] = DEFAULT_PRESERVERS
+) -> str:
     """Escapes ZML-syntax characters with the given replacements."""
 
     return text.replace(r"\[", preservers[0]).replace(r"\]", preservers[1])
 
 
-def restore_preserved_escapes(text: str, preservers: tuple[str, str] = DEFAULT_PRESERVERS) -> str:
+def restore_preserved_escapes(
+    text: str, preservers: tuple[str, str] = DEFAULT_PRESERVERS
+) -> str:
     """Escapes ZML-syntax characters with the given preservers."""
 
     return text.replace(preservers[0], "[").replace(preservers[1], "]")
