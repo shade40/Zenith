@@ -119,6 +119,8 @@ def alpha(text: str, color: str, opacity: str) -> str:
     background = color.startswith("@")
 
     color = ";".join(parse_color(color.lstrip("@"), background).split(";")[2:])
+    if len(opacity) == 1:
+        opacity += ".0"
     color += f";{opacity}"
 
     return f"[{'@' * background}{color}]{text}"
