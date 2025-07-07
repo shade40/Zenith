@@ -163,6 +163,7 @@ class StyleMap(TypedDict):
     invert: bool
     conceal: bool
     strike: bool
+    opaque: bool
 
     foreground: Color | None
     background: Color | None
@@ -182,6 +183,7 @@ def _get_style_map() -> StyleMap:
         "invert": False,
         "conceal": False,
         "strike": False,
+        "opaque": False,
         "foreground": None,
         "background": None,
         "hyperlink": "",
