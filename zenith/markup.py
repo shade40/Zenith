@@ -410,6 +410,10 @@ def zml_get_spans(text: str, keep_preservers: bool = False) -> tuple[Span, ...]:
         if plain == "":
             continue
 
+        if styles["invert"]:
+            fg = styles["foreground"]
+            bg = styles["background"]
+
         auto_fg = _apply_auto_foreground(styles)
 
         if not keep_preservers:
@@ -419,6 +423,10 @@ def zml_get_spans(text: str, keep_preservers: bool = False) -> tuple[Span, ...]:
 
         if auto_fg:
             styles["foreground"] = None
+
+            if styles["invert"]:
+                styles["foreground"] = bg
+                styles["background"] = fg
 
     return (*spans,)
 
